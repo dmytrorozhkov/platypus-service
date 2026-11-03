@@ -3,7 +3,7 @@
 ## Sources and current phase
 
 - Read PROJECT_PLAN.md, then read only the sections and files relevant to the task. Agreed decisions and proposals have different statuses in the plan.
-- Native Federation migration 008 is implemented and locally verified; independent review 009 found no remaining migration blocker after a concurrency correction. The frontend, shared Tailwind theme, and quality tooling are preserved. See docs/implementation/008-native-federation.md and docs/reviews/009-native-federation-review.md. The user confirmed that the migrated application works. Local Git repository checkpoint 010 is initialized on main; independent review 011 approved the prepared baseline. The initial commit is the next authorized handoff. Publishing and application features are outside this checkpoint.
+- Native Federation migration 008 is implemented and locally verified; independent review 009 found no remaining migration blocker after a concurrency correction. The frontend, shared Tailwind theme, and quality tooling are preserved. See docs/implementation/008-native-federation.md and docs/reviews/009-native-federation-review.md. The user confirmed that the migrated application works. Local Git baseline checkpoint 010 is complete on main: initial commit 6d07da7 contains the reviewed foundation, and post-commit verification confirmed a clean worktree and no remotes. Review 011 found no blocking findings. The next proposed product stage is a bounded Support slice; agree on that scope before implementation.
 - Start implementing a stage after the user's explicit approval. Once approved, perform routine technical work within the stage autonomously, subject to the environment's actual permissions, without requesting approval for every routine action.
 - Discuss substantial changes to agreed requirements and services that may create new charges separately. Approval of the AWS architecture does not authorize spending.
 - Do not modify other projects, including D:/Projects/node-js. Preserve existing user changes.
@@ -30,6 +30,7 @@
 ## Implementation boundaries
 
 - Use one monorepo. Microfrontends and the backend retain separate boundaries, builds, and independent deployment capability.
+- Inspect git status before changes and preserve existing user work. Review git diff and the staged snapshot before committing intentional changes. Keep generated output, local evidence/backups, dependencies, and credentials out of version control; do not discard user changes or rewrite history without authorization.
 - Angular: Shell, Support, Knowledge & AI. React: Analytics. Vue: Administration.
 - Current integration uses generated Native Federation remoteEntry.json artifacts and the official orchestrator. Keep mount/cleanup and CSS lifecycle contracts. Current remotes have private dependencies, separate orchestrator storage namespaces and additive shim maps; revisit this isolation before enabling cross-remote shared dependencies. Do not restore the previous plain-import loader.
 - Choose the latest stable, compatible Angular version when preparing the applications. Check current official sources and pin versions.

@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: local Git baseline prepared and independently reviewed; initial commit handoff.
+Current phase: local Git baseline complete and verified; next proposed stage is planning the first Support product slice.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -428,7 +428,7 @@ Agreed learning path: first create a working scenario in the monorepo and deploy
 
 Parallel development in one repository can use separate Git branches and working directories (worktrees). The coordinator owns change boundaries, shared files, integration, and combined verification. Use npm workspaces for the first experiment and one initial integrator to own shared files. Parallel working-directory isolation and any later monorepo task framework remain separate decisions.
 
-The local Git repository is initialized on main in checkpoint 010; the existing npm workspace layout is the monorepo source tree. The initial authored baseline has passed independent index review and is prepared for its first commit. No remote hosting location is configured; choose a hosting platform separately.
+The local Git repository is initialized on main. Checkpoint 010 saved initial commit 6d07da7 with 78 reviewed authored files, including the root lockfile and final review/task records. The coordinator verified the actual commit, main branch, clean worktree, and absence of remotes before recording completion. The existing npm workspace layout is the monorepo source tree. Choose a remote hosting platform separately.
 
 Sources:
 
@@ -547,7 +547,7 @@ The 100,000-ticket dataset is agreed in section 5.8. Light/dark themes are not y
 
 The user confirmed the Native Federation application works. A read-only Git check on November 4, 2026 confirmed that this directory is not yet inside a Git repository.
 
-1. Checkpoint 010: local Git main repository is initialized, ignore and LF policies are verified, and the authored baseline passed independent review 011. Final records are being included before the already approved initial commit. Assignment: docs/agent-tasks/010-git-baseline.md; preparation evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. No remote hosting is configured.
+1. Completed checkpoint 010: local main repository, verified ignore/LF policies, independent review 011, and initial commit 6d07da7 containing 78 authored files. Post-commit checks confirmed a clean worktree and no remotes. Assignment: docs/agent-tasks/010-git-baseline.md; evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. Completion documentation is recorded in a separate follow-up commit so no pre-commit claim substitutes for verification.
 2. Define the first Support product slice and its acceptance criteria, clarifying relevant ticket workflows and permissions.
 3. Implement bounded frontend and backend stages through agents, independent review, and user acceptance.
 4. Gradually add persistent data, identity/access, large tables, analytics, RAG, and AI quality checks.

@@ -1,4 +1,4 @@
-# Platypus Service
+﻿# Platypus Service
 
 A local frontend foundation: an Angular shell opens independent React Analytics and Vue Administration applications through Native Federation.
 
@@ -168,3 +168,5 @@ See the [local Git baseline report](docs/implementation/010-git-baseline.md).
 - [Initial frontend review](docs/reviews/004-independent-frontend-review.md)
 - [Quality and theme review](docs/reviews/007-quality-and-theme-review.md)
 - [Native Federation review](docs/reviews/009-native-federation-review.md)
+- [Local Git baseline](docs/implementation/010-git-baseline.md)
+- [Git baseline review](docs/reviews/011-git-baseline-review.md)
