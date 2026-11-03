@@ -1,0 +1,69 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(sh);
+@import 'tailwindcss/preflight.css' layer(base);
+@import '@platypus/theme/tokens.css';
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(sh) source(none);
+@source "./";
+
+@layer base {
+  :root {
+    font-family: var(--sh-font-sans);
+    color: var(--sh-color-ink);
+    background: var(--sh-color-canvas);
+    font-synthesis: none;
+  }
+  a {
+    color: inherit;
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  a:focus-visible,
+  button:focus-visible {
+    outline: 3px solid #bcb9ff;
+    outline-offset: 4px;
+  }
+}
+
+@layer components {
+  .workspace-nav a.active {
+    background: var(--sh-color-brand);
+    color: #fff;
+    box-shadow: 0 5px 16px #0d102433;
+  }
+  .workspace-nav svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .eyebrow {
+    color: var(--sh-color-eyebrow);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    font-weight: 650;
+  }
+  .shell-not-found {
+    padding: 32px;
+    background: #fff;
+    border: 1px solid #e6e8f1;
+    border-radius: var(--sh-radius-panel);
+  }
+  .shell-not-found h1 {
+    font-size: 28px;
+    font-weight: 650;
+    margin: 18px 0;
+  }
+  .shell-not-found p {
+    line-height: 1.7;
+    color: #697189;
+    margin: 14px 0;
+  }
+  .shell-not-found a {
+    color: #5656c8;
+  }
+}

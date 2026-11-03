@@ -1,0 +1,23 @@
+/* Compiled independently by each app; no runtime framework or global reset. */
+@theme {
+  --font-sans: 'Segoe UI', Inter, Arial, sans-serif;
+  --color-ink: #242941;
+  --color-canvas: #f5f6fa;
+  --color-sidebar: #171b34;
+  --color-sidebar-text: #c5c9db;
+  --color-brand: #6060df;
+  --color-muted: #777f95;
+  --color-eyebrow: #727591;
+  --color-note: #9298aa;
+  --color-line: #e4e7f0;
+  --color-card-copy: #83899b;
+  --color-ready: #5e8e7d;
+  --color-ready-dot: #76bda3;
+  --color-analytics-surface: #efeffd;
+  --color-analytics-accent: #706ce3;
+  --color-admin-surface: #edf7f2;
+  --color-admin-accent: #6ba98b;
+  --radius-panel: 16px;
+  --shadow-panel: 0 5px 22px #26305003;
+  --breakpoint-wide: 761px;
+}

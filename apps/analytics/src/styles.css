@@ -1,0 +1,15 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(an);
+@import '@platypus/theme/tokens.css';
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(an) source(none);
+@source "./";
+
+@layer components {
+  .ps-analytics svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@platypus/analytics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host localhost --port 5173 --strictPort",
+    "build": "tsc --noEmit && native-federation-vite build --config federation.config.mjs --out dist/remote",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@platypus/mfe-contract": "0.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@platypus/theme": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/node": "26.6.6",
+    "@vitejs/plugin-react": "6.2.1",
+    "vite": "8.3.5",
+    "typescript": "6.0.3",
+    "tailwindcss": "4.3.4",
+    "@tailwindcss/vite": "4.3.4",
+    "native-federation-vite": "0.2.0",
+    "@softarc/native-federation": "4.8.1"
+  }
+}

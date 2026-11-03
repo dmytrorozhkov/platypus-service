@@ -1,0 +1,15 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(ad);
+@import '@platypus/theme/tokens.css';
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(ad) source(none);
+@source "./";
+
+@layer components {
+  .ps-administration svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "remotes": {
+    "analytics": {
+      "contractVersion": 1,
+      "cssUrls": ["http://localhost:4301/style.css"],
+      "remoteEntryUrl": "http://localhost:4301/remoteEntry.json",
+      "exposedModule": "./mount"
+    },
+    "administration": {
+      "contractVersion": 1,
+      "cssUrls": ["http://localhost:4302/style.css"],
+      "remoteEntryUrl": "http://localhost:4302/remoteEntry.json",
+      "exposedModule": "./mount"
+    }
+  }
+}

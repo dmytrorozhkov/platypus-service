@@ -1,0 +1,27 @@
+{
+  "name": "@platypus/administration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host localhost --port 5174 --strictPort",
+    "build": "vue-tsc --noEmit && native-federation-vite build --config federation.config.mjs --out dist/remote",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@platypus/mfe-contract": "0.1.0",
+    "vue": "3.5.44",
+    "@platypus/theme": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@vitejs/plugin-vue": "6.0.10",
+    "vite": "8.3.5",
+    "typescript": "6.0.3",
+    "vue-tsc": "3.3.14",
+    "tailwindcss": "4.3.4",
+    "@tailwindcss/vite": "4.3.4",
+    "native-federation-vite": "0.2.0",
+    "@softarc/native-federation": "4.8.1"
+  }
+}
