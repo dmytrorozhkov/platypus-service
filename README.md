@@ -1,12 +1,50 @@
 # Platypus Service
 
-A local application foundation: an Angular shell opens independent Angular Support, React Analytics and Vue Administration applications through Native Federation.
+A customer support platform for a fictional company, built as a practical course in Angular, Node.js, AWS and AI engineering. The project combines independently built microfrontends with a backend, and develops the product in small reviewed stages.
 
-This is the first integration experiment. It includes the first read-only Support list with 25 fictional local tickets. A local Node.js server supplies those examples. It contains no sign-in, database persistence, charts, cloud resources, or paid services.
+Coding agents research, implement and review bounded tasks. The learner defines requirements, follows the technical decisions and accepts demonstrated results. The course includes agent orchestration (coordinating tasks and handoffs), reusable skills, and retrieval-augmented generation (RAG: answering with relevant knowledge-base material).
+
+## Current application
+
+The locally verified application has an Angular Shell, Angular Support, React Analytics and Vue Administration connected through **Native Federation**. Support displays **25 fictional tickets fetched from the independent Node.js server**. The examples are temporary server-owned JSON data, with a repository boundary prepared for later database integration.
+
+| Area           | Available now                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Shell          | Navigation, direct routes, remote loading, error recovery and cleanup                           |
+| Support        | Read-only seven-column ticket table, loading/empty/error states, Retry and request cancellation |
+| Analytics      | Independently built React demonstration page; business charts are planned                       |
+| Administration | Independently built Vue demonstration page; role administration is planned                      |
+| Backend        | Node.js HTTP API: `GET /api/health` and `GET /api/tickets`                                      |
+| Shared tooling | Tailwind theme, ESLint, Prettier, typechecking, server/lifecycle and browser verification       |
+
+The current slice runs locally. Sign-in, server-enforced permissions, database persistence, business charts, conversations and AI features are later stages. Application deployment to AWS has not been performed.
+
+## Planned product
+
+- Customer, support specialist, support lead and administrator roles, with organization and access checks on the server.
+- Eight pages: sign-in, tickets, new ticket, ticket details, AI Chat, knowledge base, Analytics and Administration.
+- A 100,000-ticket dataset with server-side search, filtering, sorting and pagination, followed by richer table interactions.
+- Analytics charts using Apache ECharts, customer-support conversations, and a separate private AI chat for staff and administrators.
+- Knowledge-grounded AI replies with source references, human-approved response drafts, and checks of AI answer quality.
+- Amazon Cognito for sign-in, PostgreSQL for core support data, DynamoDB for private AI conversation history, and Lambda jobs for article preparation, large-table export and AI evaluation.
+
+These are agreed targets, not a list of implemented features. Detailed requirements, decisions and acceptance evidence live in the [project plan](PROJECT_PLAN.md).
+
+## Current AWS preparation
+
+As of November 4, 2026, the learner has created the **Platypus Service** AWS project on the **Free plan** in **Europe (Stockholm), `eu-north-1`**. AWS CLI **2.39.3**, browser-based sign-in and the local `platypus-dev` profile were verified in the learner's terminal. The required `uv` tool is installed; **Agent Toolkit setup is still pending**. Successful identity lookup establishes sign-in, not every permission needed for deployment.
+
+The reviewed first-deployment proposal uses private S3 storage, CloudFront delivery and a Lambda Event Function serving the existing 25 examples. PostgreSQL follows as a separately estimated stage. Infrastructure code, cloud configuration, deployment and rollback verification are still to be implemented. Free-plan credits and allowances have conditions and expiry; deployment or spending requires a separately agreed step.
+
+- [First AWS deployment architecture](docs/architecture/019-aws-first-deployment-architecture.md)
+- [Cost assumptions, estimates and teardown](docs/research/020-aws-cost-plan.md)
+- [Independent planning review](docs/reviews/021-aws-deployment-planning-review.md)
+
+AWS access credentials stay outside the repository. AWS account access is not needed to run the current local application.
 
 ## Start locally
 
-Use PowerShell in `D:\Projects\Pet-projects\aws`. Use `npm.cmd` without changing execution policy.
+On Windows, open PowerShell at the repository root (the learning workspace is `D:\Projects\Pet-projects\aws`). Use `npm.cmd` without changing execution policy.
 
 Verified environment: Node.js **24.21.0**, npm **11.19.0**. This project now requires Node `^24.16.0 || >=26.0.0`, the intersection of Angular and the Native Federation orchestrator requirements.
 
@@ -181,9 +219,11 @@ The repository interface (`apps/server/src/ticket-repository.ts`) is the later P
 
 Checks include real server responses, controlled empty/internal failures, explicit origins, unavailable/restarted real API recovery in Edge, cancellation, malformed responses, all three Support hosting modes, and existing federation/theme regressions. See [local server implementation and evidence](docs/implementation/014-local-ticket-server.md).
 
-## Local Git workflow
+## Git and GitHub workflow
 
-The local Git repository was initialized on `main`; feature work uses separate branches. Check the active branch with `git branch --show-current`. A commit is a saved checkpoint of intentionally staged files. No remote hosting or automatic synchronization is configured.
+The repository is hosted at [dmytrorozhkov/platypus-service](https://github.com/dmytrorozhkov/platypus-service). The local remote `origin` points to that repository. Feature and planning work use separate branches; check the active one with `git branch --show-current`. A commit saves an intentional checkpoint locally; `git push` sends commits to GitHub. Synchronization is manual.
+
+As of November 4, 2026, the published default branch is `planning/aws-first-deployment`. It contains the current application and reviewed plans; local `main` retains the earlier foundation checkpoint. Branch names do not indicate completed cloud deployment.
 
 ```powershell
 git status
@@ -191,6 +231,7 @@ git diff
 git add <specific-path>
 git diff --cached
 git commit -m "Describe the completed change"
+git push -u origin HEAD
 ```
 
 Review the staged changes before committing. Dependencies, build output, caches, local evidence, test output, coverage, and `.env` secrets stay outside history; the root `package-lock.json` stays tracked. An `.env.example` must contain placeholders only. `.gitattributes` keeps text line endings consistent with the project's LF formatting.
@@ -209,3 +250,13 @@ See the [local Git baseline report](docs/implementation/010-git-baseline.md).
 - [Native Federation review](docs/reviews/009-native-federation-review.md)
 - [Local Git baseline](docs/implementation/010-git-baseline.md)
 - [Git baseline review](docs/reviews/011-git-baseline-review.md)
+- [Support ticket-list implementation](docs/implementation/012-support-ticket-list.md)
+- [Support ticket-list review](docs/reviews/013-support-ticket-list-review.md)
+- [Local Node.js server implementation](docs/implementation/014-local-ticket-server.md)
+- [Local Node.js server review](docs/reviews/015-local-ticket-server-review.md)
+- [PostgreSQL data-design proposal](docs/architecture/016-postgresql-data-design.md)
+- [Local PostgreSQL environment proposal](docs/research/017-local-postgresql-environment.md)
+- [PostgreSQL planning review](docs/reviews/018-postgresql-planning-review.md)
+- [First AWS deployment proposal](docs/architecture/019-aws-first-deployment-architecture.md)
+- [AWS cost plan](docs/research/020-aws-cost-plan.md)
+- [AWS planning review](docs/reviews/021-aws-deployment-planning-review.md)

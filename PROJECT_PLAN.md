@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: AWS architecture/cost proposals 019/020 and independent review 021 are complete; recommendations await user acceptance. Target zero learning-stage payments under verified conditions. No AWS account or cloud resources have been created.
+Current phase: AWS architecture/cost proposals 019/020 and review 021 are complete. The user has created the Platypus Service AWS project on Free plan in Stockholm and verified CLI sign-in; Agent Toolkit setup is pending. The current application and plans are published to GitHub. Application deployment and cloud resource provisioning remain future work.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -584,6 +584,18 @@ The new signup experience assigns Ohio, Stockholm or Sydney from contact-country
 Scaling settings and delayed budget notifications are not a zero-dollar billing cap. Retain explicit resource ownership, short logs, bounded release retention and complete teardown of owned origins, functions/versions, distribution/associations, artifacts and logs. Stopping local applications does not stop cloud endpoints or remove stored cloud resources.
 
 Evidence: docs/architecture/019-aws-first-deployment-architecture.md; docs/research/020-aws-cost-plan.md; docs/reviews/021-aws-deployment-planning-review.md. Planning is complete; recommendations await user acceptance. The next proposed small step is user-owned account creation and inspection of the actual Free plan, assigned Region and credit grant without sharing credentials. Application/infrastructure implementation and resource creation must be defined and approved separately. No registration, installation, cloud resource, paid action or empirical cloud compatibility/billing check occurred in this phase.
+
+## 5.27. AWS access and GitHub setup — user-confirmed progress
+
+During guided setup, the user created an AWS project and renamed it Platypus Service. Console screenshots showed Free plan, USD 100 credits remaining, USD 0 due and a trial end date of May 4, 2027, as observed on November 4, 2026. The project's assigned Region is Europe (Stockholm), eu-north-1. These are account observations at that time, not permanent balances, credit-expiry guarantees or authorization for paid usage.
+
+The user installed AWS CLI 2.39.3 on Windows. Refreshing the current PowerShell process's executable search path resolved command discovery in VS Code. The user configured profile platypus-dev for eu-north-1, completed browser-based aws login, and demonstrated a successful aws sts get-caller-identity response. The screenshots identify the active role as AccountFullAccessRole; identity lookup does not prove that every deployment operation is allowed. No identifiers, tokens, credentials or sign-in links are recorded here. The user also installed uv 0.13.7 with WinGet and verified it in the VS Code terminal.
+
+The next proposed access step is the interactive Agent Toolkit setup. No successful wizard output, configured agent connection, installed AWS skill set or agent-side AWS invocation has been demonstrated yet. The toolkit's service-region parameter is separate from the Stockholm project Region. Review generated configuration and the named-profile selection before claiming completion; do not interpret access setup as approval to provision resources.
+
+The user created https://github.com/dmytrorozhkov/platypus-service.git. The coordinator configured origin; the user subsequently published the current branch. A live read-only Git check confirmed HEAD and the only remote branch planning/aws-first-deployment at commit 55319fe. Local main remains the earlier foundation checkpoint. GitHub visibility was not independently established. Later branch organization must preserve these histories; no force push or history rewrite is needed.
+
+The user requested an updated README after publication. It now describes the product goal, implemented local slice, future features, current AWS preparation, GitHub workflow and links to recent evidence. Existing local launch and verification commands are retained. Historical research reports describe their dated evidence; current account/readiness status is recorded in this section. Application code, infrastructure resources and Agent Toolkit configuration were not changed by the documentation refresh.
 
 ## 6. Costs — agreed approach
 
