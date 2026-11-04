@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: Support ticket-list task 012 implemented, locally verified and independently reviewed; user acceptance pending.
+Current phase: Support ticket-list task 012 implemented, locally verified, independently reviewed and accepted by the user. The next bounded stage is being proposed.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -505,7 +505,7 @@ Verified: four application builds/typechecks, lint with zero warnings, formattin
 
 This first read-only view does not choose the final heavy-table library or add query controls, backend, authentication, databases, ticket details, or AI. The complete agreed table retains server-side querying/access checks, page sizes of 25/50/100, and the 100,000-record learning dataset. Local fixtures are a temporary development source. Existing development-tool audit findings remain documented in the implementation report; this stage adds no paid/cloud resource.
 
-Commands remain npm.cmd ci, npm.cmd run build, and npm.cmd start; open http://localhost:4200/support/tickets. Support can also build and run independently. Work is on feature/support-ticket-list, preserving the main baseline. Assignment: docs/agent-tasks/012-support-ticket-list.md. Implementation: docs/implementation/012-support-ticket-list.md. Independent review task: docs/agent-tasks/013-support-ticket-list-review.md. Independent review 013 found no remaining confirmed blocker; see docs/reviews/013-support-ticket-list-review.md. This bounded stage forms the intentional local Git checkpoint. User acceptance and the next implementation stage remain pending.
+Commands remain npm.cmd ci, npm.cmd run build, and npm.cmd start; open http://localhost:4200/support/tickets. Support can also build and run independently. Work is on feature/support-ticket-list, preserving the main baseline. Assignment: docs/agent-tasks/012-support-ticket-list.md. Implementation: docs/implementation/012-support-ticket-list.md. Independent review task: docs/agent-tasks/013-support-ticket-list-review.md. Independent review 013 found no remaining confirmed blocker; see docs/reviews/013-support-ticket-list-review.md. The reviewed stage was saved in commit 9163b2d; post-commit checks confirmed a clean worktree and responding local services. The user subsequently confirmed that Tickets opens and displays the table, accepting the visible slice. This confirmation does not claim that the user personally exercised every automated test scenario. The next implementation stage is not yet approved.
 
 ## 6. Costs — agreed approach
 
@@ -562,8 +562,8 @@ The 100,000-ticket dataset is agreed in section 5.8. Light/dark themes are not y
 The user confirmed the Native Federation application works. Before checkpoint 010, a read-only Git check on November 4, 2026 confirmed that the directory was not yet inside a repository; checkpoint 010 subsequently created the baseline recorded below.
 
 1. Completed checkpoint 010: local main repository, verified ignore/LF policies, independent review 011, and initial commit 6d07da7 containing 78 authored files. Post-commit checks confirmed a clean worktree and no remotes. Assignment: docs/agent-tasks/010-git-baseline.md; evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. Completion documentation is recorded in a separate follow-up commit so no pre-commit claim substitutes for verification.
-2. Task 012 is implemented and locally verified: independent Angular Support, Tickets navigation, 25 temporary fictional records, shared styling, SignalStore state, loading/empty/error/retry, and cancellation cleanup. Independent review 013 found no remaining confirmed blocker; user acceptance precedes the next stage. Server querying, authorization, PostgreSQL persistence, and full heavy-table behavior remain later agreed work.
-3. Implement bounded frontend and backend stages through agents, independent review, and user acceptance.
+2. Task 012 is implemented and locally verified: independent Angular Support, Tickets navigation, 25 temporary fictional records, shared styling, SignalStore state, loading/empty/error/retry, and cancellation cleanup. Independent review 013 found no remaining confirmed blocker, commit 9163b2d saved the reviewed stage, and the user confirmed the visible table works. Server querying, authorization, PostgreSQL persistence, and full heavy-table behavior remain later agreed work.
+3. Proposed next bounded slice, not yet approved: add a local Node.js server returning the same 25 fictional tickets and replace the Support fixture adapter with server loading. Define the request/response contract, loading/error/retry checks and agent handoff before implementation. PostgreSQL persistence follows as a separate stage.
 4. Gradually add persistent data, identity/access, large tables, analytics, RAG, and AI quality checks.
 5. Agree on costs before paid connections, then deploy to AWS.
 
