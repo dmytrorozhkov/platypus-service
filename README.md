@@ -1,8 +1,8 @@
-﻿# Platypus Service
+# Platypus Service
 
-A local frontend foundation: an Angular shell opens independent Angular Support, React Analytics and Vue Administration applications through Native Federation.
+A local application foundation: an Angular shell opens independent Angular Support, React Analytics and Vue Administration applications through Native Federation.
 
-This is the first integration experiment. It includes the first read-only Support list with 25 fictional local tickets. It contains no sign-in, persisted business data, charts, backend, cloud resources, or paid services.
+This is the first integration experiment. It includes the first read-only Support list with 25 fictional local tickets. A local Node.js server supplies those examples. It contains no sign-in, database persistence, charts, cloud resources, or paid services.
 
 ## Start locally
 
@@ -25,7 +25,7 @@ npm.cmd start
 
 Open **http://localhost:4200**. The root opens Analytics; use the menu to open Tickets or Administration. Tickets also opens directly at http://localhost:4200/support/tickets.
 
-Keep that terminal running. **Ctrl+C stops Shell and all three remote servers.** The command fails if a reserved port is occupied; it does not choose another port. If a workspace session is already running, open its URL instead of starting a second copy.
+Keep that terminal running. **Ctrl+C stops the owned Node API, Shell and all three remote servers.** The command fails if a reserved port is occupied; it does not choose another port. If a workspace session is already running, open its URL instead of starting a second copy.
 
 Shell source changes rebuild automatically. Integrated Angular Support/React/Vue pages use their **built** artifacts: rebuild the changed remote, then reload the browser document.
 
@@ -38,7 +38,9 @@ Shell source changes rebuild automatically. Integrated Angular Support/React/Vue
 | Vue Administration | `@platypus/administration` | http://localhost:4302/remoteEntry.json | `npm.cmd run build --workspace @platypus/administration` |
 | Angular Support    | `@platypus/support`        | http://localhost:4303/remoteEntry.json | `npm.cmd run build --workspace @platypus/support`        |
 
-For independent page development, use separate terminals:
+The Node API is another independent workspace: `@platypus/server`, http://localhost:3000, build with `npm.cmd run build --workspace @platypus/server`, start with `npm.cmd run start:server`.
+
+For independent page development, keep the API running and use separate terminals:
 
 ```powershell
 npm.cmd run dev --workspace @platypus/analytics
@@ -54,12 +56,13 @@ To check the built Shell instead of its development server, stop `npm.cmd start`
 npm.cmd run preview
 ```
 
-For manual separate processes, use `npm.cmd run serve:analytics`, `npm.cmd run serve:administration`, `npm.cmd run serve:support`, and `npm.cmd run dev --workspace @platypus/shell` in four terminals.
+For manual separate processes, use `npm.cmd run serve:analytics`, `npm.cmd run serve:administration`, `npm.cmd run serve:support`, `npm.cmd run dev --workspace @platypus/shell`, and `npm.cmd run start:server` in five terminals.
 
 ## Boundaries
 
 - `apps/shell`: Angular menu, browser routes, loading/error/retry UI, runtime configuration and remote lifecycle.
-- `apps/support`: Angular ticket list, component-scoped NgRx SignalStore, asynchronous fixture data adapter and private Angular runtime.
+- `apps/support`: Angular ticket list, component-scoped NgRx SignalStore, asynchronous server data adapter and private Angular runtime.
+- `apps/server`: independent Node.js HTTP API and server-owned temporary fixture repository.
 - `apps/analytics`: React page, independent ES module and scoped CSS.
 - `apps/administration`: Vue page, independent ES module and scoped CSS.
 - `packages/mfe-contract`: framework-independent types, with no runtime bundle.
@@ -88,7 +91,7 @@ The adapter is an early community release, pinned to its declared Vite 8 and Nat
 
 Remotes mount only into the supplied container, return idempotent cleanup handles and receive an abort signal. Shell releases styles and ignores stale asynchronous results when a route changes. CSS isolation is a convention, not a security boundary.
 
-The local Node server accepts only its mapped build directories, returns JavaScript/CSS content types, disables caching, permits the Shell localhost origin, and keeps real asset 404 responses. Built Shell hosting supports direct route refreshes. This server is for local verification only.
+The local static hosting tool accepts only its mapped build directories, returns JavaScript/CSS content types, disables caching, permits the Shell localhost origin, and keeps real asset 404 responses. Built Shell hosting supports direct route refreshes. This server is for local verification only.
 
 ## Shared styling with Tailwind
 
@@ -128,6 +131,8 @@ Implementation details and verification: [code quality report](docs/implementati
 ```powershell
 npm.cmd run typecheck
 npm.cmd run test:integration
+npm.cmd run test:server
+npm.cmd run test:startup
 ```
 
 With the integrated workspace running:
@@ -143,21 +148,42 @@ To include all three standalone pages, start their three development commands an
 
 The independent-build check temporarily changes one Analytics sentence, rebuilds only Analytics, verifies that Shell displays it while the Shell, Administration, and Support build hashes remain unchanged, then restores and rebuilds the original Analytics source. Run `npm.cmd run test:independent-build -- --support` for the equivalent Support-only proof, preserving Shell/Analytics/Administration hashes. Run either check only when no one else is editing or building that application.
 
-Checks completed: reproducible `npm.cmd ci`, three builds and typechecks, hosting/contract tests, browser tests against development and built Shell, standalone pages, repeated navigation, history, direct links/refresh, loading cancellation, controlled failure recovery, mobile layout, remote-only rebuild, strict occupied-port behavior, and Ctrl+C port release. Details and limits: [implementation report](docs/implementation/003-frontend-foundation.md).
+Initial foundation checks (report 003): reproducible `npm.cmd ci`, three builds and typechecks, hosting/contract tests, browser tests against development and built Shell, standalone pages, repeated navigation, history, direct links/refresh, loading cancellation, controlled failure recovery, mobile layout, remote-only rebuild, strict occupied-port behavior, and Ctrl+C port release. Details and limits: [implementation report](docs/implementation/003-frontend-foundation.md).
 
 npm 11 reported four dependency install scripts as not approved. The clean install and builds succeeded with their packaged binaries; no blanket script approval was added. Angular development reports that prebundling is unused because its cache is disabled in non-interactive mode. These messages were observed separately from application errors.
 
-## First Support slice
+## Local ticket server and Support data
 
-Support currently reads `fixtures/tickets.json` from its own deployment origin. The fixture has 25 unique fictional requests, all four agreed statuses, seven columns, and unassigned examples. Dates are labelled and rendered in UTC. The semantic table scrolls inside its own region on narrow screens. There are no fake search, paging, sign-in or action controls.
+Support now loads `GET /api/tickets` from the independent Node.js workspace. The response is `{ "items": [...], "total": 25 }`; `GET /api/health` returns `{ "status": "ok" }`. The same 25 fictional requests live only in `apps/server/src/fixtures/tickets.json`, copied into the server build. No frontend fixture fallback remains. The seven-column table, four statuses, unassigned examples, UTC dates and mobile scrolling are unchanged.
 
-The component-scoped SignalStore owns loading, data, error and Retry; an injected asynchronous `TicketData` adapter fetches and validates the fixture with cancellation. A later Node.js-to-PostgreSQL adapter will replace this temporary source. The agreed 100,000-ticket dataset, server access checks/querying, and page sizes of 25/50/100 remain later requirements. No browser database connection is intended.
+The component-scoped SignalStore retains loading, empty, error and Retry states. Its `ApiTicketData` boundary reads deployment-relative `ticket-api-config.json`, fetches and validates the response, and passes one cancellation signal to configuration and ticket requests. Leaving Tickets cancels pending work; an unavailable server produces the existing error. Restart the server and select Retry to recover without restarting the frontend.
 
-Verification includes healthy rendering, actual fixture loading/error/empty/malformed results and recovery, delayed Angular startup, late-created application cleanup, repeated navigation and mobile layout. Fixtures are public local learning data and provide no access enforcement. See [Support implementation and evidence](docs/implementation/012-support-ticket-list.md).
+Build and start only the server, without rebuilding any frontend:
+
+```powershell
+npm.cmd run build --workspace @platypus/server
+npm.cmd run start:server
+```
+
+The default address is **http://localhost:3000**, bound to localhost. `PORT` changes the server port; `ALLOWED_ORIGINS` optionally supplies comma-separated HTTP origins. Defaults are explicitly `http://localhost:4200` (Shell) and `http://localhost:5175` (Support source/built standalone). Browser cross-origin rules are not authorization; no sign-in or role/organization checks exist yet.
+
+Support's public configuration is `apps/support/public/ticket-api-config.json`:
+
+```json
+{ "apiBaseUrl": "http://localhost:3000" }
+```
+
+The value must be an HTTP origin, with no path, credentials, query or fragment. When changing the server port, update this configuration too. For built Support, rebuild it or replace the deployed `apps/support/dist/browser/ticket-api-config.json`; source standalone serves the public file. No server address belongs in the table component and no secret belongs in public configuration.
+
+Integrated start/preview owns its API child and all frontend listeners. An occupied API port fails before frontend startup, without killing the port's current owner. If the API exits after startup, the frontend stays available. A server restarted in a **separate terminal** is owned by that terminal and must be stopped there; the integrated command cannot adopt that new process. Ctrl+C in the integrated terminal stops its own children/listeners.
+
+The repository interface (`apps/server/src/ticket-repository.ts`) is the later PostgreSQL replacement boundary. This stage is read-only, unfiltered and unpaged; `total` equals the returned collection length. The agreed 100,000-record dataset, server-side access/querying and page sizes of 25/50/100 remain later work.
+
+Checks include real server responses, controlled empty/internal failures, explicit origins, unavailable/restarted real API recovery in Edge, cancellation, malformed responses, all three Support hosting modes, and existing federation/theme regressions. See [local server implementation and evidence](docs/implementation/014-local-ticket-server.md).
 
 ## Local Git workflow
 
-This project now has a local Git repository on the `main` branch. A commit is a saved checkpoint of intentionally staged files. No remote hosting or automatic synchronization is configured.
+The local Git repository was initialized on `main`; feature work uses separate branches. Check the active branch with `git branch --show-current`. A commit is a saved checkpoint of intentionally staged files. No remote hosting or automatic synchronization is configured.
 
 ```powershell
 git status

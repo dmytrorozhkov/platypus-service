@@ -1,3 +1,4 @@
+import { checkSupportStandalone } from './ticket-api-browser-check.mjs';
 import { checkSupport } from './support-browser-check.mjs';
 import assert from 'node:assert/strict';
 import { access, mkdir, readFile, readdir } from 'node:fs/promises';
@@ -104,392 +105,428 @@ async function checkStyles() {
   assert(shell.columns.startsWith('250px '));
 }
 try {
-  for (const [app, prefix] of [
-    ['analytics', 'an'],
-    ['administration', 'ad'],
-  ]) {
-    const css = await readFile(
-      path.join(projectRoot, 'apps', app, 'dist/remote/style.css'),
+  if (process.argv.includes('--support-standalone-only')) {
+    await checkSupportStandalone(page, passed);
+    assert.deepEqual(errors, []);
+  } else {
+    for (const [app, prefix] of [
+      ['analytics', 'an'],
+      ['administration', 'ad'],
+    ]) {
+      const css = await readFile(
+        path.join(projectRoot, 'apps', app, 'dist/remote/style.css'),
+        'utf8',
+      );
+      assert(css.includes('.' + prefix + '\\:flex'));
+      assert(css.includes('--' + prefix + '-color-ink'));
+      assert(!css.includes('box-sizing:border-box'));
+      assert(!css.includes('font-family:inherit'));
+    }
+    const shellFiles = await readdir(
+      path.join(projectRoot, 'apps/shell/dist/browser'),
+    );
+    const shellCss = await readFile(
+      path.join(
+        projectRoot,
+        'apps/shell/dist/browser',
+        shellFiles.find((file) => /^styles-.*\.css$/.test(file)),
+      ),
       'utf8',
     );
-    assert(css.includes('.' + prefix + '\\:flex'));
-    assert(css.includes('--' + prefix + '-color-ink'));
-    assert(!css.includes('box-sizing:border-box'));
-    assert(!css.includes('font-family:inherit'));
-  }
-  const shellFiles = await readdir(
-    path.join(projectRoot, 'apps/shell/dist/browser'),
-  );
-  const shellCss = await readFile(
-    path.join(
-      projectRoot,
-      'apps/shell/dist/browser',
-      shellFiles.find((file) => /^styles-.*\.css$/.test(file)),
-    ),
-    'utf8',
-  );
-  assert(shellCss.includes('.sh\\:grid'));
-  assert(shellCss.includes('box-sizing:border-box'));
-  passed(
-    'Independent CSS outputs include used prefixed utilities; only Shell includes Preflight.',
-  );
-  if (standalone) {
-    await page.goto('http://localhost:5173/');
-    await heading('Analytics');
-    await checkTheme();
-    await page.goto('http://localhost:5174/');
-    await heading('Administration');
-    await checkTheme();
+    assert(shellCss.includes('.sh\\:grid'));
+    assert(shellCss.includes('box-sizing:border-box'));
     passed(
-      'React and Vue standalone pages render headings and independent shared-theme card styles.',
+      'Independent CSS outputs include used prefixed utilities; only Shell includes Preflight.',
     );
-  }
-  await checkSupport({ browser, page, standalone, evidenceDirectory, passed });
-  await page.goto('http://localhost:4200/');
-  await heading('Analytics');
-  assert.equal(new URL(page.url()).pathname, '/analytics');
-  await checkStyles();
-  passed('Root redirects to React Analytics; exactly one remote stylesheet.');
-  await page.screenshot({
-    path: path.join(evidenceDirectory, 'analytics.png'),
-    fullPage: true,
-  });
-  for (let iteration = 0; iteration < 4; iteration++) {
+    if (standalone) {
+      await page.goto('http://localhost:5173/');
+      await heading('Analytics');
+      await checkTheme();
+      await page.goto('http://localhost:5174/');
+      await heading('Administration');
+      await checkTheme();
+      passed(
+        'React and Vue standalone pages render headings and independent shared-theme card styles.',
+      );
+    }
+    await checkSupport({
+      browser,
+      page,
+      standalone,
+      evidenceDirectory,
+      passed,
+    });
+    await page.goto('http://localhost:4200/');
+    await heading('Analytics');
+    assert.equal(new URL(page.url()).pathname, '/analytics');
+    await checkStyles();
+    passed('Root redirects to React Analytics; exactly one remote stylesheet.');
+    await page.screenshot({
+      path: path.join(evidenceDirectory, 'analytics.png'),
+      fullPage: true,
+    });
+    for (let iteration = 0; iteration < 4; iteration++) {
+      await page
+        .getByRole('link', { name: 'Administration', exact: true })
+        .click();
+      await heading('Administration');
+      assert.equal(await page.locator('.ps-analytics').count(), 0);
+      await checkStyles();
+      await page.getByRole('link', { name: 'Analytics', exact: true }).click();
+      await heading('Analytics');
+      assert.equal(await page.locator('.ps-administration').count(), 0);
+      await checkStyles();
+    }
+    passed('Repeated React/Vue navigation cleans previous roots and styles.');
+    for (const [port, name] of [
+      [4301, 'analytics'],
+      [4302, 'administration'],
+      [4303, 'support'],
+    ]) {
+      const entryUrl = 'http://localhost:' + port + '/remoteEntry.json';
+      const entry = await (await context.request.get(entryUrl)).json();
+      assert.equal(entry.name, name);
+      assert.equal(entry.$version, 'v4');
+      const exposedUrl = new URL(
+        entry.exposes.find((exposed) => exposed.key === './mount').outFileName,
+        entryUrl,
+      ).href;
+      assert(
+        federationRequests.has(entryUrl),
+        'Browser requested Native Federation metadata: ' + name,
+      );
+      assert(
+        federationRequests.has(exposedUrl),
+        'Browser requested generated exposed module: ' + name,
+      );
+      assert.equal(
+        federationRequests.has('http://localhost:' + port + '/remote-entry.js'),
+        false,
+      );
+    }
+    const orchestratorVersion = await page.evaluate(
+      () =>
+        globalThis.__NF_ORCHESTRATOR__.storage.__PLATYPUS_ANALYTICS__.version,
+    );
+    assert.equal(orchestratorVersion, '4.9.0');
+    assert((await page.locator('script[type="importmap-shim"]').count()) > 0);
+    passed(
+      'Browser fetched real remoteEntry.json and generated exposes through official Native Federation orchestrator4.9.0.',
+    );
+    await page.goBack();
+    await heading('Administration');
+    await page.goForward();
+    await heading('Analytics');
+    passed(
+      'Browser Back/Forward keeps Angular routing and remote content aligned.',
+    );
+    await page.goto('http://localhost:4200/administration');
+    await heading('Administration');
+    await page.reload();
+    await heading('Administration');
+    await page.screenshot({
+      path: path.join(evidenceDirectory, 'administration.png'),
+      fullPage: true,
+    });
+    passed('Direct Administration URL and document refresh mount Vue.');
+    await page.goto('http://localhost:4200/missing-page');
+    await heading('This page is not available.');
+    assert.equal(await page.locator('link[data-ps-remote-style]').count(), 0);
+    passed(
+      'Unknown route shows Shell-owned not-found view with no remote styles.',
+    );
+    await page.goto('http://localhost:4200/analytics');
+    await heading('Analytics');
+
+    let moduleObserved;
+    const moduleRequested = new Promise((resolve) => {
+      moduleObserved = resolve;
+    });
+    let releaseModule;
+    const moduleGate = new Promise((resolve) => {
+      releaseModule = resolve;
+    });
+    await page.route(administrationModuleUrl, async (route) => {
+      moduleObserved();
+      await moduleGate;
+      await route.continue();
+    });
     await page
       .getByRole('link', { name: 'Administration', exact: true })
       .click();
-    await heading('Administration');
-    assert.equal(await page.locator('.ps-analytics').count(), 0);
-    await checkStyles();
+    await moduleRequested;
     await page.getByRole('link', { name: 'Analytics', exact: true }).click();
     await heading('Analytics');
+    releaseModule();
+    await page.waitForTimeout(300);
     assert.equal(await page.locator('.ps-administration').count(), 0);
     await checkStyles();
-  }
-  passed('Repeated React/Vue navigation cleans previous roots and styles.');
-  for (const [port, name] of [
-    [4301, 'analytics'],
-    [4302, 'administration'],
-    [4303, 'support'],
-  ]) {
-    const entryUrl = 'http://localhost:' + port + '/remoteEntry.json';
-    const entry = await (await context.request.get(entryUrl)).json();
-    assert.equal(entry.name, name);
-    assert.equal(entry.$version, 'v4');
-    const exposedUrl = new URL(
-      entry.exposes.find((exposed) => exposed.key === './mount').outFileName,
-      entryUrl,
-    ).href;
-    assert(
-      federationRequests.has(entryUrl),
-      'Browser requested Native Federation metadata: ' + name,
+    await page.unroute(administrationModuleUrl);
+    passed(
+      'Observed late module request finishes without mounting a stale route.',
     );
-    assert(
-      federationRequests.has(exposedUrl),
-      'Browser requested generated exposed module: ' + name,
+    // Fresh document clears the module cache and deliberately holds stylesheet loading.
+    await page.goto('http://localhost:4200/analytics');
+    await heading('Analytics');
+    let stylesheetObserved;
+    const stylesheetRequested = new Promise((resolve) => {
+      stylesheetObserved = resolve;
+    });
+    let releaseStylesheet;
+    const stylesheetGate = new Promise((resolve) => {
+      releaseStylesheet = resolve;
+    });
+    await page.route('http://localhost:4302/style.css', async (route) => {
+      stylesheetObserved();
+      await stylesheetGate;
+      await route.continue().catch(() => {});
+    });
+    await page
+      .getByRole('link', { name: 'Administration', exact: true })
+      .click();
+    await stylesheetRequested;
+    await page.getByRole('link', { name: 'Analytics', exact: true }).click();
+    await heading('Analytics');
+    releaseStylesheet();
+    await page.waitForTimeout(300);
+    assert.equal(await page.locator('.ps-administration').count(), 0);
+    await checkStyles();
+    await page.unroute('http://localhost:4302/style.css');
+    passed(
+      'Navigation during observed stylesheet loading releases stale style references.',
     );
+    assert.deepEqual(errors, []);
+    passed(
+      'Shared-theme computed styles and Shell layout survive navigation; healthy integration has no browser errors.',
+    );
+
+    // Separate context: controlled failures must remain recoverable and isolated.
+    const failureContext = await browser.newContext();
+    const failure = await failureContext.newPage();
+    const configResponse = await failure.request.get(
+      'http://localhost:4200/runtime-config.json',
+    );
+    const config = await configResponse.json();
+    let badVersion = true;
+    await failure.route('**/runtime-config.json', (route) =>
+      route.fulfill({
+        json: badVersion ? { ...config, schemaVersion: 99 } : config,
+      }),
+    );
+    await failure.goto('http://localhost:4200/analytics');
+    await failure
+      .getByRole('heading', {
+        name: 'We could not open Analytics.',
+        exact: true,
+      })
+      .waitFor();
     assert.equal(
-      federationRequests.has('http://localhost:' + port + '/remote-entry.js'),
+      await failure.locator('link[data-ps-remote-style]').count(),
+      0,
+    );
+    badVersion = false;
+    await failure.getByRole('button', { name: 'Retry', exact: true }).click();
+    await failure
+      .getByRole('heading', { name: 'Analytics', exact: true })
+      .waitFor();
+    passed(
+      'Invalid config fails safely; Retry refetches fixed config and recovers.',
+    );
+    let blockStyles = true;
+    await failure.route('http://localhost:4302/style.css', (route) =>
+      blockStyles ? route.abort('failed') : route.continue(),
+    );
+    await failure
+      .getByRole('link', { name: 'Administration', exact: true })
+      .click();
+    await failure
+      .getByRole('heading', {
+        name: 'We could not open Administration.',
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(
+      await failure.locator('link[data-ps-remote-style]').count(),
+      0,
+    );
+    blockStyles = false;
+    await failure.getByRole('button', { name: 'Retry', exact: true }).click();
+    await failure
+      .getByRole('heading', { name: 'Administration', exact: true })
+      .waitFor();
+    passed(
+      'Missing stylesheet fails safely, releases styles and recovers with Retry.',
+    );
+    await failureContext.close();
+
+    const contractContext = await browser.newContext();
+    const contractPage = await contractContext.newPage();
+    await contractPage.route(administrationModuleUrl, (route) =>
+      route.fulfill({
+        contentType: 'text/javascript',
+        body: 'export const contractVersion = 2; export function mount() {}',
+      }),
+    );
+    await contractPage.goto('http://localhost:4200/administration');
+    await contractPage
+      .getByRole('heading', {
+        name: 'We could not open Administration.',
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(
+      await contractPage.locator('link[data-ps-remote-style]').count(),
+      0,
+    );
+    await contractPage.unroute(administrationModuleUrl);
+    await contractPage
+      .getByRole('button', { name: 'Reload page', exact: true })
+      .click();
+    await contractPage
+      .getByRole('heading', { name: 'Administration', exact: true })
+      .waitFor();
+    passed(
+      'Unsupported actual module contract fails safely and Reload recovers after correction.',
+    );
+    await contractContext.close();
+
+    const metadataContext = await browser.newContext();
+    const metadataPage = await metadataContext.newPage();
+    let unavailableMetadata = true;
+    let metadataAttempts = 0;
+    await metadataPage.route(administrationEntryUrl, (route) => {
+      metadataAttempts++;
+      return unavailableMetadata
+        ? route.abort('connectionrefused')
+        : route.continue();
+    });
+    await metadataPage.goto('http://localhost:4200/administration');
+    await metadataPage
+      .getByRole('heading', {
+        name: 'We could not open Administration.',
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(
+      await metadataPage.locator('link[data-ps-remote-style]').count(),
+      0,
+    );
+    unavailableMetadata = false;
+    await metadataPage
+      .getByRole('button', { name: 'Retry', exact: true })
+      .click();
+    await metadataPage
+      .getByRole('heading', { name: 'Administration', exact: true })
+      .waitFor();
+    assert(metadataAttempts >= 2);
+    passed(
+      'Failed remoteEntry metadata leaves no styles; Retry performs actual metadata refetch and recovers.',
+    );
+    await metadataContext.close();
+
+    const slowContext = await browser.newContext();
+    const slowPage = await slowContext.newPage();
+    let metadataObserved;
+    const metadataRequested = new Promise((resolve) => {
+      metadataObserved = resolve;
+    });
+    let releaseMetadata;
+    const metadataGate = new Promise((resolve) => {
+      releaseMetadata = resolve;
+    });
+    let heldMetadata = true;
+    await slowPage.route(administrationEntryUrl, async (route) => {
+      if (!heldMetadata) return route.continue();
+      metadataObserved();
+      await metadataGate;
+      heldMetadata = false;
+      await route.abort('connectionrefused').catch(() => {});
+    });
+    await slowPage.goto('http://localhost:4200/administration');
+    await metadataRequested;
+    await slowPage
+      .getByRole('link', { name: 'Analytics', exact: true })
+      .click();
+    await slowPage
+      .getByRole('heading', { name: 'Analytics', exact: true })
+      .waitFor();
+    assert.equal(await slowPage.locator('.ps-administration').count(), 0);
+    releaseMetadata();
+    await slowPage.waitForTimeout(300);
+    assert.equal(await slowPage.locator('.ps-administration').count(), 0);
+    assert.equal(
+      await slowPage.locator('link[data-ps-remote-style]').count(),
+      1,
+    );
+    await slowPage.unroute(administrationEntryUrl);
+    await slowPage
+      .getByRole('link', { name: 'Administration', exact: true })
+      .click();
+    await slowPage
+      .getByRole('heading', { name: 'Administration', exact: true })
+      .waitFor();
+    passed(
+      'Held Administration metadata does not block fresh Analytics; late metadata failure leaves healthy route usable.',
+    );
+    await slowPage
+      .getByRole('link', { name: 'Analytics', exact: true })
+      .click();
+    await slowPage
+      .getByRole('heading', { name: 'Analytics', exact: true })
+      .waitFor();
+    assert.equal(
+      await slowPage.locator('link[data-ps-remote-style]').count(),
+      1,
+    );
+    await slowContext.close();
+
+    const offlineContext = await browser.newContext();
+    const offlinePage = await offlineContext.newPage();
+    await offlinePage.route(administrationModuleUrl, (route) =>
+      route.abort('connectionrefused'),
+    );
+    await offlinePage.goto('http://localhost:4200/administration');
+    await offlinePage
+      .getByRole('heading', {
+        name: 'We could not open Administration.',
+        exact: true,
+      })
+      .waitFor();
+    await offlinePage
+      .getByRole('link', { name: 'Analytics', exact: true })
+      .click();
+    await offlinePage
+      .getByRole('heading', { name: 'Analytics', exact: true })
+      .waitFor();
+    await offlinePage.unroute(administrationModuleUrl);
+    await offlinePage.goto('http://localhost:4200/administration');
+    await offlinePage
+      .getByRole('heading', { name: 'Administration', exact: true })
+      .waitFor();
+    passed(
+      'Unavailable remote leaves Shell navigation usable; new document recovers.',
+    );
+    await offlineContext.close();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('http://localhost:4200/analytics');
+    await heading('Analytics');
+    assert.equal(
+      await page.evaluate(
+        () =>
+          globalThis.document.documentElement.scrollWidth >
+          globalThis.innerWidth,
+      ),
       false,
     );
+    await page.screenshot({
+      path: path.join(evidenceDirectory, 'mobile.png'),
+      fullPage: true,
+    });
+    passed(
+      'Mobile viewport preserves navigation and has no horizontal overflow.',
+    );
   }
-  const orchestratorVersion = await page.evaluate(
-    () => globalThis.__NF_ORCHESTRATOR__.storage.__PLATYPUS_ANALYTICS__.version,
-  );
-  assert.equal(orchestratorVersion, '4.9.0');
-  assert((await page.locator('script[type="importmap-shim"]').count()) > 0);
-  passed(
-    'Browser fetched real remoteEntry.json and generated exposes through official Native Federation orchestrator4.9.0.',
-  );
-  await page.goBack();
-  await heading('Administration');
-  await page.goForward();
-  await heading('Analytics');
-  passed(
-    'Browser Back/Forward keeps Angular routing and remote content aligned.',
-  );
-  await page.goto('http://localhost:4200/administration');
-  await heading('Administration');
-  await page.reload();
-  await heading('Administration');
-  await page.screenshot({
-    path: path.join(evidenceDirectory, 'administration.png'),
-    fullPage: true,
-  });
-  passed('Direct Administration URL and document refresh mount Vue.');
-  await page.goto('http://localhost:4200/missing-page');
-  await heading('This page is not available.');
-  assert.equal(await page.locator('link[data-ps-remote-style]').count(), 0);
-  passed(
-    'Unknown route shows Shell-owned not-found view with no remote styles.',
-  );
-  await page.goto('http://localhost:4200/analytics');
-  await heading('Analytics');
-
-  let moduleObserved;
-  const moduleRequested = new Promise((resolve) => {
-    moduleObserved = resolve;
-  });
-  let releaseModule;
-  const moduleGate = new Promise((resolve) => {
-    releaseModule = resolve;
-  });
-  await page.route(administrationModuleUrl, async (route) => {
-    moduleObserved();
-    await moduleGate;
-    await route.continue();
-  });
-  await page.getByRole('link', { name: 'Administration', exact: true }).click();
-  await moduleRequested;
-  await page.getByRole('link', { name: 'Analytics', exact: true }).click();
-  await heading('Analytics');
-  releaseModule();
-  await page.waitForTimeout(300);
-  assert.equal(await page.locator('.ps-administration').count(), 0);
-  await checkStyles();
-  await page.unroute(administrationModuleUrl);
-  passed(
-    'Observed late module request finishes without mounting a stale route.',
-  );
-  // Fresh document clears the module cache and deliberately holds stylesheet loading.
-  await page.goto('http://localhost:4200/analytics');
-  await heading('Analytics');
-  let stylesheetObserved;
-  const stylesheetRequested = new Promise((resolve) => {
-    stylesheetObserved = resolve;
-  });
-  let releaseStylesheet;
-  const stylesheetGate = new Promise((resolve) => {
-    releaseStylesheet = resolve;
-  });
-  await page.route('http://localhost:4302/style.css', async (route) => {
-    stylesheetObserved();
-    await stylesheetGate;
-    await route.continue().catch(() => {});
-  });
-  await page.getByRole('link', { name: 'Administration', exact: true }).click();
-  await stylesheetRequested;
-  await page.getByRole('link', { name: 'Analytics', exact: true }).click();
-  await heading('Analytics');
-  releaseStylesheet();
-  await page.waitForTimeout(300);
-  assert.equal(await page.locator('.ps-administration').count(), 0);
-  await checkStyles();
-  await page.unroute('http://localhost:4302/style.css');
-  passed(
-    'Navigation during observed stylesheet loading releases stale style references.',
-  );
-  assert.deepEqual(errors, []);
-  passed(
-    'Shared-theme computed styles and Shell layout survive navigation; healthy integration has no browser errors.',
-  );
-
-  // Separate context: controlled failures must remain recoverable and isolated.
-  const failureContext = await browser.newContext();
-  const failure = await failureContext.newPage();
-  const configResponse = await failure.request.get(
-    'http://localhost:4200/runtime-config.json',
-  );
-  const config = await configResponse.json();
-  let badVersion = true;
-  await failure.route('**/runtime-config.json', (route) =>
-    route.fulfill({
-      json: badVersion ? { ...config, schemaVersion: 99 } : config,
-    }),
-  );
-  await failure.goto('http://localhost:4200/analytics');
-  await failure
-    .getByRole('heading', { name: 'We could not open Analytics.', exact: true })
-    .waitFor();
-  assert.equal(await failure.locator('link[data-ps-remote-style]').count(), 0);
-  badVersion = false;
-  await failure.getByRole('button', { name: 'Retry', exact: true }).click();
-  await failure
-    .getByRole('heading', { name: 'Analytics', exact: true })
-    .waitFor();
-  passed(
-    'Invalid config fails safely; Retry refetches fixed config and recovers.',
-  );
-  let blockStyles = true;
-  await failure.route('http://localhost:4302/style.css', (route) =>
-    blockStyles ? route.abort('failed') : route.continue(),
-  );
-  await failure
-    .getByRole('link', { name: 'Administration', exact: true })
-    .click();
-  await failure
-    .getByRole('heading', {
-      name: 'We could not open Administration.',
-      exact: true,
-    })
-    .waitFor();
-  assert.equal(await failure.locator('link[data-ps-remote-style]').count(), 0);
-  blockStyles = false;
-  await failure.getByRole('button', { name: 'Retry', exact: true }).click();
-  await failure
-    .getByRole('heading', { name: 'Administration', exact: true })
-    .waitFor();
-  passed(
-    'Missing stylesheet fails safely, releases styles and recovers with Retry.',
-  );
-  await failureContext.close();
-
-  const contractContext = await browser.newContext();
-  const contractPage = await contractContext.newPage();
-  await contractPage.route(administrationModuleUrl, (route) =>
-    route.fulfill({
-      contentType: 'text/javascript',
-      body: 'export const contractVersion = 2; export function mount() {}',
-    }),
-  );
-  await contractPage.goto('http://localhost:4200/administration');
-  await contractPage
-    .getByRole('heading', {
-      name: 'We could not open Administration.',
-      exact: true,
-    })
-    .waitFor();
-  assert.equal(
-    await contractPage.locator('link[data-ps-remote-style]').count(),
-    0,
-  );
-  await contractPage.unroute(administrationModuleUrl);
-  await contractPage
-    .getByRole('button', { name: 'Reload page', exact: true })
-    .click();
-  await contractPage
-    .getByRole('heading', { name: 'Administration', exact: true })
-    .waitFor();
-  passed(
-    'Unsupported actual module contract fails safely and Reload recovers after correction.',
-  );
-  await contractContext.close();
-
-  const metadataContext = await browser.newContext();
-  const metadataPage = await metadataContext.newPage();
-  let unavailableMetadata = true;
-  let metadataAttempts = 0;
-  await metadataPage.route(administrationEntryUrl, (route) => {
-    metadataAttempts++;
-    return unavailableMetadata
-      ? route.abort('connectionrefused')
-      : route.continue();
-  });
-  await metadataPage.goto('http://localhost:4200/administration');
-  await metadataPage
-    .getByRole('heading', {
-      name: 'We could not open Administration.',
-      exact: true,
-    })
-    .waitFor();
-  assert.equal(
-    await metadataPage.locator('link[data-ps-remote-style]').count(),
-    0,
-  );
-  unavailableMetadata = false;
-  await metadataPage
-    .getByRole('button', { name: 'Retry', exact: true })
-    .click();
-  await metadataPage
-    .getByRole('heading', { name: 'Administration', exact: true })
-    .waitFor();
-  assert(metadataAttempts >= 2);
-  passed(
-    'Failed remoteEntry metadata leaves no styles; Retry performs actual metadata refetch and recovers.',
-  );
-  await metadataContext.close();
-
-  const slowContext = await browser.newContext();
-  const slowPage = await slowContext.newPage();
-  let metadataObserved;
-  const metadataRequested = new Promise((resolve) => {
-    metadataObserved = resolve;
-  });
-  let releaseMetadata;
-  const metadataGate = new Promise((resolve) => {
-    releaseMetadata = resolve;
-  });
-  let heldMetadata = true;
-  await slowPage.route(administrationEntryUrl, async (route) => {
-    if (!heldMetadata) return route.continue();
-    metadataObserved();
-    await metadataGate;
-    heldMetadata = false;
-    await route.abort('connectionrefused').catch(() => {});
-  });
-  await slowPage.goto('http://localhost:4200/administration');
-  await metadataRequested;
-  await slowPage.getByRole('link', { name: 'Analytics', exact: true }).click();
-  await slowPage
-    .getByRole('heading', { name: 'Analytics', exact: true })
-    .waitFor();
-  assert.equal(await slowPage.locator('.ps-administration').count(), 0);
-  releaseMetadata();
-  await slowPage.waitForTimeout(300);
-  assert.equal(await slowPage.locator('.ps-administration').count(), 0);
-  assert.equal(await slowPage.locator('link[data-ps-remote-style]').count(), 1);
-  await slowPage.unroute(administrationEntryUrl);
-  await slowPage
-    .getByRole('link', { name: 'Administration', exact: true })
-    .click();
-  await slowPage
-    .getByRole('heading', { name: 'Administration', exact: true })
-    .waitFor();
-  passed(
-    'Held Administration metadata does not block fresh Analytics; late metadata failure leaves healthy route usable.',
-  );
-  await slowPage.getByRole('link', { name: 'Analytics', exact: true }).click();
-  await slowPage
-    .getByRole('heading', { name: 'Analytics', exact: true })
-    .waitFor();
-  assert.equal(await slowPage.locator('link[data-ps-remote-style]').count(), 1);
-  await slowContext.close();
-
-  const offlineContext = await browser.newContext();
-  const offlinePage = await offlineContext.newPage();
-  await offlinePage.route(administrationModuleUrl, (route) =>
-    route.abort('connectionrefused'),
-  );
-  await offlinePage.goto('http://localhost:4200/administration');
-  await offlinePage
-    .getByRole('heading', {
-      name: 'We could not open Administration.',
-      exact: true,
-    })
-    .waitFor();
-  await offlinePage
-    .getByRole('link', { name: 'Analytics', exact: true })
-    .click();
-  await offlinePage
-    .getByRole('heading', { name: 'Analytics', exact: true })
-    .waitFor();
-  await offlinePage.unroute(administrationModuleUrl);
-  await offlinePage.goto('http://localhost:4200/administration');
-  await offlinePage
-    .getByRole('heading', { name: 'Administration', exact: true })
-    .waitFor();
-  passed(
-    'Unavailable remote leaves Shell navigation usable; new document recovers.',
-  );
-  await offlineContext.close();
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('http://localhost:4200/analytics');
-  await heading('Analytics');
-  assert.equal(
-    await page.evaluate(
-      () =>
-        globalThis.document.documentElement.scrollWidth > globalThis.innerWidth,
-    ),
-    false,
-  );
-  await page.screenshot({
-    path: path.join(evidenceDirectory, 'mobile.png'),
-    fullPage: true,
-  });
-  passed(
-    'Mobile viewport preserves navigation and has no horizontal overflow.',
-  );
 } finally {
   await browser.close();
 }

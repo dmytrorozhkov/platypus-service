@@ -29,11 +29,13 @@ export default defineConfig(
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
   {
-    files: ['apps/*/src/**/*.{ts,tsx,vue}'],
+    files: [
+      'apps/{shell,support,analytics,administration}/src/**/*.{ts,tsx,vue}',
+    ],
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['apps/*/vite.config.ts'],
+    files: ['apps/*/vite.config.ts', 'apps/server/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   {

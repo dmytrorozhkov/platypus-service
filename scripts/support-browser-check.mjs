@@ -1,8 +1,12 @@
-﻿import assert from 'node:assert/strict';
+import {
+  checkRealServerRecovery,
+  checkSupportStandalone,
+} from './ticket-api-browser-check.mjs';
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { projectRoot } from './serve-local.mjs';
-const fixtureUrl = 'http://localhost:4303/fixtures/tickets.json';
+const ticketApiUrl = 'http://localhost:3000/api/tickets';
 const entryUrl = 'http://localhost:4303/remoteEntry.json';
 const ticketsUrl = 'http://localhost:4200/support/tickets';
 const heading = (page) =>
@@ -48,7 +52,7 @@ export async function checkSupport({
   assert(!css.includes('#support-root'));
   const fixture = JSON.parse(
     await readFile(
-      path.join(projectRoot, 'apps/support/public/fixtures/tickets.json'),
+      path.join(projectRoot, 'apps/server/src/fixtures/tickets.json'),
       'utf8',
     ),
   );
@@ -60,15 +64,19 @@ export async function checkSupport({
     'In progress',
     'New',
   ]);
-  if (standalone) {
-    await page.goto('http://localhost:5175/');
-    await loaded(page);
-    passed(
-      'Angular Support standalone page renders 25 fictional tickets with independent theme.',
-    );
-  }
+  if (standalone) await checkSupportStandalone(page, passed);
+  const requestedApi = page.waitForResponse(ticketApiUrl);
   await page.goto(ticketsUrl);
   await loaded(page);
+  const actualApi = await requestedApi;
+  assert.equal(actualApi.status(), 200);
+  assert.equal((await actualApi.json()).total, 25);
+  assert.equal(
+    (
+      await page.request.get('http://localhost:4303/fixtures/tickets.json')
+    ).status(),
+    404,
+  );
   await layout(page);
   const headers = await page.locator('.ps-support th').allTextContents();
   assert.deepEqual(headers, [
@@ -146,15 +154,15 @@ export async function checkSupport({
   );
   const controlled = await browser.newContext();
   const data = await controlled.newPage();
-  let fixtureAborted = false;
+  let ticketAborted = false;
   data.on('requestfailed', (request) => {
-    if (request.url() === fixtureUrl) fixtureAborted = true;
+    if (request.url() === ticketApiUrl) ticketAborted = true;
   });
   let release;
   let observed;
   const gate = new Promise((r) => (release = r));
   const requested = new Promise((r) => (observed = r));
-  await data.route(fixtureUrl, async (route) => {
+  await data.route(ticketApiUrl, async (route) => {
     observed();
     await gate;
     await route.continue().catch(() => {});
@@ -169,23 +177,23 @@ export async function checkSupport({
   assert.equal(await data.locator('ps-support').count(), 0);
   assert.equal(await data.locator('link[data-ps-remote-style]').count(), 1);
   assert(
-    fixtureAborted,
-    'Leaving Support aborts its outstanding fixture fetch.',
+    ticketAborted,
+    'Leaving Support aborts its outstanding ticket API fetch.',
   );
-  await data.unroute(fixtureUrl);
+  await data.unroute(ticketApiUrl);
   passed(
-    'Observed Support fixture loading state is cancellable; leaving route cannot render a late table.',
+    'Observed Support API loading state is cancellable; leaving route cannot render a late table.',
   );
   let mode = 'error';
   let attempts = 0;
-  await data.route(fixtureUrl, (route) => {
+  await data.route(ticketApiUrl, (route) => {
     attempts++;
     return mode === 'error'
       ? route.fulfill({ status: 503, json: { message: 'Unavailable' } })
       : mode === 'empty'
-        ? route.fulfill({ json: [] })
+        ? route.fulfill({ json: { items: [], total: 0 } })
         : mode === 'malformed'
-          ? route.fulfill({ json: [{ number: 'bad' }] })
+          ? route.fulfill({ json: { items: [{ number: 'bad' }], total: 1 } })
           : route.continue();
   });
   await data.goto(ticketsUrl);
@@ -217,6 +225,7 @@ export async function checkSupport({
     'Actual data boundary verifies HTTP 503 error, Retry refetch, empty result, malformed data and recovery without product debug controls.',
   );
   await controlled.close();
+  await checkRealServerRecovery(browser, passed);
   const delayed = await browser.newContext();
   const slow = await delayed.newPage();
   const errs = [];

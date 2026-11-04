@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: Support ticket-list task 012 implemented, locally verified, independently reviewed and accepted by the user. The next bounded stage is being proposed.
+Current phase: local ticket-server task 014 implemented, locally verified and independently reviewed; user acceptance pending.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -507,6 +507,20 @@ This first read-only view does not choose the final heavy-table library or add q
 
 Commands remain npm.cmd ci, npm.cmd run build, and npm.cmd start; open http://localhost:4200/support/tickets. Support can also build and run independently. Work is on feature/support-ticket-list, preserving the main baseline. Assignment: docs/agent-tasks/012-support-ticket-list.md. Implementation: docs/implementation/012-support-ticket-list.md. Independent review task: docs/agent-tasks/013-support-ticket-list-review.md. Independent review 013 found no remaining confirmed blocker; see docs/reviews/013-support-ticket-list-review.md. The reviewed stage was saved in commit 9163b2d; post-commit checks confirmed a clean worktree and responding local services. The user subsequently confirmed that Tickets opens and displays the table, accepting the visible slice. This confirmation does not claim that the user personally exercised every automated test scenario. The next implementation stage is not yet approved.
 
+## 5.23. Local ticket server — implemented and locally verified
+
+The user approved task 014 after reviewing its prepared contract. The independent apps/server workspace now compiles TypeScript and runs Node's built-in HTTP server. GET /api/health returns status ok; GET /api/tickets returns the unchanged 25 fictional records with items and total. Unknown paths, methods and internal failures have consistent JSON errors. No runtime server framework was added; the only new dependency graph entries are the server workspace/link and its private Node 24 development types.
+
+The authoritative fixture moved from Support's public assets to the server repository boundary. Support now loads deployment-relative server configuration, requests and validates the response, and retains SignalStore loading/empty/error/Retry behavior. The same cancellation signal covers configuration and data requests. No frontend fixture fallback remains. PostgreSQL can later replace the server repository; this first contract is unpaged and requires total to equal the returned collection length.
+
+Integrated start/preview owns the API child and frontend listeners. An occupied API port fails without killing its owner. An API exit after startup leaves frontends available for error/Retry recovery. A separately restarted API belongs to its own terminal. Independent review identified a shutdown-during-startup race; guarded listener acquisition and a real-listener regression test corrected it.
+
+Verified: five workspace builds/typechecks, zero-warning lint, formatting, three Node HTTP tests, three startup/lifecycle tests and both existing hosting/contract tests. Real Edge checks passed 25 development-Shell groups, 27 built-Shell/standalone groups and a focused Support source-standalone API check. Actual API stop/restart recovers through Retry; cancellation, prior federation/Angular lifecycle checks and shared styling remain passing. Independent server startup returned health and ticket data without frontend processes. Actual TCP connection probes established that owned Ctrl+C shutdown closed all checked ports before a fresh integrated development stack was retained. The coordinator separately verified HTTP responses and inspected desktop/mobile screenshots.
+
+Commands: npm.cmd ci, npm.cmd run build, npm.cmd start; open http://localhost:4200/support/tickets. Default API: http://localhost:3000. Independent server: npm.cmd run build --workspace @platypus/server, then npm.cmd run start:server. README records address/origin configuration and process ownership. The server still uses public fictional learning data; persistence, identity/access checks, server querying, the 100,000-record dataset, cloud and paid resources remain later work.
+
+Work uses feature/local-ticket-server. Assignment: docs/agent-tasks/014-local-ticket-server.md. Implementation: docs/implementation/014-local-ticket-server.md. Independent review: docs/reviews/015-local-ticket-server-review.md; no remaining confirmed blocker. The reviewed stage is ready for its intentional local Git checkpoint and demonstration. User acceptance remains pending.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.
@@ -563,7 +577,7 @@ The user confirmed the Native Federation application works. Before checkpoint 01
 
 1. Completed checkpoint 010: local main repository, verified ignore/LF policies, independent review 011, and initial commit 6d07da7 containing 78 authored files. Post-commit checks confirmed a clean worktree and no remotes. Assignment: docs/agent-tasks/010-git-baseline.md; evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. Completion documentation is recorded in a separate follow-up commit so no pre-commit claim substitutes for verification.
 2. Task 012 is implemented and locally verified: independent Angular Support, Tickets navigation, 25 temporary fictional records, shared styling, SignalStore state, loading/empty/error/retry, and cancellation cleanup. Independent review 013 found no remaining confirmed blocker, commit 9163b2d saved the reviewed stage, and the user confirmed the visible table works. Server querying, authorization, PostgreSQL persistence, and full heavy-table behavior remain later agreed work.
-3. Proposed next bounded slice, not yet approved: add a local Node.js server returning the same 25 fictional tickets and replace the Support fixture adapter with server loading. Define the request/response contract, loading/error/retry checks and agent handoff before implementation. PostgreSQL persistence follows as a separate stage.
+3. Task 014 is implemented and locally verified: an independent local Node.js server supplies GET /api/health and GET /api/tickets with the same 25 examples in an items/total response. Support loads through its configurable adapter and retains loading/error/Retry/cancellation behavior. Independent review 015 found no remaining confirmed blocker; user acceptance precedes the next stage. See section 5.23 and docs/implementation/014-local-ticket-server.md. PostgreSQL persistence follows as a separate stage.
 4. Gradually add persistent data, identity/access, large tables, analytics, RAG, and AI quality checks.
 5. Agree on costs before paid connections, then deploy to AWS.
 

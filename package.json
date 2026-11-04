@@ -2,7 +2,7 @@
   "name": "@platypus/workspace",
   "version": "0.1.0",
   "private": true,
-  "description": "Local Angular, React and Vue microfrontend integration experiment.",
+  "description": "Local Angular, React, Vue and Node.js integration experiment.",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -14,7 +14,7 @@
   "packageManager": "npm@11.19.0",
   "scripts": {
     "start": "node scripts/start-local.mjs",
-    "build": "npm run build --workspace @platypus/analytics && npm run build --workspace @platypus/administration && npm run build --workspace @platypus/support && npm run build --workspace @platypus/shell",
+    "build": "npm run build --workspace @platypus/server && npm run build --workspace @platypus/analytics && npm run build --workspace @platypus/administration && npm run build --workspace @platypus/support && npm run build --workspace @platypus/shell",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:integration": "node --test scripts/integration.test.mjs",
     "serve:analytics": "node scripts/serve-local.mjs analytics",
@@ -26,7 +26,10 @@
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "serve:support": "node scripts/serve-local.mjs support"
+    "serve:support": "node scripts/serve-local.mjs support",
+    "start:server": "npm run start --workspace @platypus/server",
+    "test:server": "npm run build --workspace @platypus/server && npm run test --workspace @platypus/server",
+    "test:startup": "node --test scripts/workspace-processes.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
