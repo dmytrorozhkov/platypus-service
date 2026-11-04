@@ -1,0 +1,24 @@
+{
+  "project": "platypus-service",
+  "accountId": "REPLACE_WITH_VERIFIED_ACCOUNT_ID",
+  "region": "eu-north-1",
+  "profile": "platypus-dev",
+  "stackPrefix": "platypus-dev",
+  "concurrency": {
+    "mode": "unresolved",
+    "accountLimit": 5,
+    "unreserved": 5,
+    "reviewedAt": null,
+    "acceptedSharedAccountCap": false
+  },
+  "ownershipVerified": false,
+  "resources": {
+    "bucket": null,
+    "bucketDomain": null,
+    "functionArn": null,
+    "aliasArn": null,
+    "functionUrl": null,
+    "distributionId": null,
+    "origin": null
+  }
+}

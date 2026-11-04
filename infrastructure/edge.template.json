@@ -1,0 +1,605 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "One pay-as-you-go HTTPS distribution serves private static releases and a signed read-only Lambda origin; starts disabled.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "infrastructure/README.md",
+          "has": "Bootstrap, ownership, release and deletion constraints",
+          "scope": "shared"
+        }
+      ]
+    }
+  },
+  "Parameters": {
+    "BucketDomain": {
+      "Type": "String",
+      "Description": "Storage stack regional REST domain.",
+      "AllowedPattern": "^[a-z0-9.-]+\\.s3\\.eu-north-1\\.amazonaws\\.com$"
+    },
+    "AliasArn": {
+      "Type": "String",
+      "Description": "Backend live alias ARN in the same account/Region.",
+      "AllowedPattern": "^arn:aws:lambda:eu-north-1:[0-9]{12}:function:[A-Za-z0-9_-]+:live$"
+    },
+    "ApiUrl": {
+      "Type": "String",
+      "Description": "Backend FunctionUrl output including its trailing slash.",
+      "AllowedPattern": "^https://[a-z0-9]+\\.lambda-url\\.eu-north-1\\.on\\.aws/$"
+    },
+    "Enabled": {
+      "Type": "String",
+      "Description": "Enable only after origin, artifact, quota and policy checks are accepted.",
+      "Default": "false",
+      "AllowedValues": ["true", "false"]
+    }
+  },
+  "Conditions": {
+    "IsEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "Enabled"
+        },
+        "true"
+      ]
+    }
+  },
+  "Resources": {
+    "StaticOac": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Signed REST access keeps S3 private.",
+          "must": [
+            "Use the S3 REST origin and distribution-scoped bucket policy."
+          ]
+        }
+      },
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-static"
+          },
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "ApiOac": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Sign API origin requests without making the Function URL public.",
+          "must": ["Keep URL AWS_IAM and both invoke permissions."]
+        }
+      },
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-api"
+          },
+          "OriginAccessControlOriginType": "lambda",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "NoCache": {
+      "Type": "AWS::CloudFront::CachePolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "All mutable control documents and API responses bypass edge caching.",
+          "must": [
+            "Minimum TTL remains zero.",
+            "Default and maximum TTL stay zero."
+          ]
+        }
+      },
+      "Properties": {
+        "CachePolicyConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-no-cache"
+          },
+          "MinTTL": 0,
+          "DefaultTTL": 0,
+          "MaxTTL": 0,
+          "ParametersInCacheKeyAndForwardedToOrigin": {
+            "EnableAcceptEncodingGzip": false,
+            "EnableAcceptEncodingBrotli": false,
+            "CookiesConfig": {
+              "CookieBehavior": "none"
+            },
+            "HeadersConfig": {
+              "HeaderBehavior": "none"
+            },
+            "QueryStringsConfig": {
+              "QueryStringBehavior": "none"
+            }
+          }
+        }
+      }
+    },
+    "StaticCache": {
+      "Type": "AWS::CloudFront::CachePolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Immutable file caching respects explicit no-store because the minimum is zero.",
+          "must": ["Minimum TTL remains zero."]
+        }
+      },
+      "Properties": {
+        "CachePolicyConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-static"
+          },
+          "MinTTL": 0,
+          "DefaultTTL": 31536000,
+          "MaxTTL": 31536000,
+          "ParametersInCacheKeyAndForwardedToOrigin": {
+            "EnableAcceptEncodingGzip": true,
+            "EnableAcceptEncodingBrotli": true,
+            "CookiesConfig": {
+              "CookieBehavior": "none"
+            },
+            "HeadersConfig": {
+              "HeaderBehavior": "none"
+            },
+            "QueryStringsConfig": {
+              "QueryStringBehavior": "none"
+            }
+          }
+        }
+      }
+    },
+    "ApiOriginPolicy": {
+      "Type": "AWS::CloudFront::OriginRequestPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Retain explicit origin rejection while CloudFront signs the actual origin host.",
+          "must": [
+            "Never forward viewer Host or browser credentials in this public fictional slice."
+          ]
+        }
+      },
+      "Properties": {
+        "OriginRequestPolicyConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-api-origin"
+          },
+          "CookiesConfig": {
+            "CookieBehavior": "none"
+          },
+          "HeadersConfig": {
+            "HeaderBehavior": "whitelist",
+            "Headers": ["Origin"]
+          },
+          "QueryStringsConfig": {
+            "QueryStringBehavior": "all"
+          }
+        }
+      }
+    },
+    "SecurityHeaders": {
+      "Type": "AWS::CloudFront::ResponseHeadersPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Add supported security headers without a guessed CSP that breaks federation shims or Angular inline styles.",
+          "must": [
+            "Review CSP only after testing the actual module/style graph."
+          ]
+        }
+      },
+      "Properties": {
+        "ResponseHeadersPolicyConfig": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}-security"
+          },
+          "SecurityHeadersConfig": {
+            "ContentTypeOptions": {
+              "Override": true
+            },
+            "FrameOptions": {
+              "FrameOption": "DENY",
+              "Override": true
+            },
+            "ReferrerPolicy": {
+              "ReferrerPolicy": "strict-origin-when-cross-origin",
+              "Override": true
+            },
+            "StrictTransportSecurity": {
+              "AccessControlMaxAgeSec": 31536000,
+              "IncludeSubdomains": false,
+              "Preload": false,
+              "Override": true
+            }
+          }
+        }
+      }
+    },
+    "PageRoutes": {
+      "Type": "AWS::CloudFront::Function",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Exact pages alone become Shell HTML. Private artifact namespaces fail at the edge and missing assets keep origin errors.",
+          "must": [
+            "No extensionless catch-all or 403/404 HTML fallback.",
+            "Keep /mfe separate from /support/tickets."
+          ]
+        }
+      },
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-routes"
+        },
+        "AutoPublish": true,
+        "FunctionConfig": {
+          "Comment": "Exact Shell page rewrites; assets keep errors.",
+          "Runtime": "cloudfront-js-2.0"
+        },
+        "FunctionCode": "function handler(event) {\n  var request = event.request;\n  if (request.uri === '/' || request.uri === '/analytics' || request.uri === '/administration' || request.uri === '/support/tickets') request.uri = '/index.html';\n  if (request.uri.indexOf('/_deploy/') === 0 || request.uri.indexOf('/_releases/') === 0) return { statusCode: 404, statusDescription: 'Not Found', headers: { 'content-type': { value: 'text/plain; charset=utf-8' }, 'cache-control': { value: 'no-store' } }, body: 'Not found' };\n  return request;\n}",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Generated cloudfront.net HTTPS avoids a domain/certificate. No pricing-plan resource means ordinary pay-as-you-go.",
+          "must": [
+            "No WAF subscription, Lambda@Edge, custom domain or paid optional services.",
+            "Starts disabled; enable only after deployment gates.",
+            "No error ResponsePagePath or success status substitution."
+          ]
+        }
+      },
+      "Properties": {
+        "DistributionConfig": {
+          "Comment": "Platypus Service public fictional learning demo",
+          "Enabled": {
+            "Fn::If": ["IsEnabled", true, false]
+          },
+          "HttpVersion": "http2and3",
+          "IPV6Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": true
+          },
+          "Origins": [
+            {
+              "Id": "static",
+              "DomainName": {
+                "Ref": "BucketDomain"
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              },
+              "OriginAccessControlId": {
+                "Ref": "StaticOac"
+              }
+            },
+            {
+              "Id": "api",
+              "DomainName": {
+                "Fn::Select": [
+                  2,
+                  {
+                    "Fn::Split": [
+                      "/",
+                      {
+                        "Ref": "ApiUrl"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "CustomOriginConfig": {
+                "HTTPSPort": 443,
+                "OriginProtocolPolicy": "https-only",
+                "OriginSSLProtocols": ["TLSv1.2"]
+              },
+              "OriginAccessControlId": {
+                "Ref": "ApiOac"
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "static",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+            "CachedMethods": ["GET", "HEAD"],
+            "Compress": true,
+            "CachePolicyId": {
+              "Ref": "StaticCache"
+            },
+            "ResponseHeadersPolicyId": {
+              "Ref": "SecurityHeaders"
+            },
+            "FunctionAssociations": [
+              {
+                "EventType": "viewer-request",
+                "FunctionARN": {
+                  "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                }
+              }
+            ]
+          },
+          "CacheBehaviors": [
+            {
+              "PathPattern": "/api/*",
+              "TargetOriginId": "api",
+              "ViewerProtocolPolicy": "https-only",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "OriginRequestPolicyId": {
+                "Ref": "ApiOriginPolicy"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              }
+            },
+            {
+              "PathPattern": "/runtime-config.json",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            },
+            {
+              "PathPattern": "/index.html",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            },
+            {
+              "PathPattern": "/favicon.svg",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            },
+            {
+              "PathPattern": "/mfe/*/remoteEntry.json",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            },
+            {
+              "PathPattern": "/mfe/*/importmap.json",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            },
+            {
+              "PathPattern": "/mfe/*/ticket-api-config.json",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "NoCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            },
+            {
+              "PathPattern": "/mfe/*",
+              "TargetOriginId": "static",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "CachePolicyId": {
+                "Ref": "StaticCache"
+              },
+              "ResponseHeadersPolicyId": {
+                "Ref": "SecurityHeaders"
+              },
+              "FunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "FunctionARN": {
+                    "Fn::GetAtt": ["PageRoutes", "FunctionARN"]
+                  }
+                }
+              ]
+            }
+          ],
+          "CustomErrorResponses": [
+            {
+              "ErrorCode": 403,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 404,
+              "ErrorCachingMinTTL": 0
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "InvokeUrl": {
+      "Type": "AWS::Lambda::Permission",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "The first required OAC permission applies only to this distribution and URL auth mode.",
+          "must": [
+            "Keep both permissions scoped to the same alias/distribution/account."
+          ]
+        }
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "AliasArn"
+        },
+        "Action": "lambda:InvokeFunctionUrl",
+        "Principal": "cloudfront.amazonaws.com",
+        "FunctionUrlAuthType": "AWS_IAM",
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+        }
+      }
+    },
+    "InvokeFunction": {
+      "Type": "AWS::Lambda::Permission",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "The second required OAC permission permits invocation only through a function URL.",
+          "must": ["Do not omit InvokedViaFunctionUrl or expand the principal."]
+        }
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "AliasArn"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "cloudfront.amazonaws.com",
+        "InvokedViaFunctionUrl": true,
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        },
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "DistributionId": {
+      "Description": "Owned distribution ID for storage policy and checks.",
+      "Value": {
+        "Ref": "Distribution"
+      }
+    },
+    "DomainName": {
+      "Description": "Generated HTTPS hostname; no custom domain.",
+      "Value": {
+        "Fn::GetAtt": ["Distribution", "DomainName"]
+      }
+    },
+    "Origin": {
+      "Description": "Public origin to package and publish explicitly after approval.",
+      "Value": {
+        "Fn::Sub": "https://${Distribution.DomainName}"
+      }
+    }
+  }
+}

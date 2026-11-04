@@ -34,13 +34,24 @@ These are agreed targets, not a list of implemented features. Detailed requireme
 
 As of November 4, 2026, the learner has created the **Platypus Service** AWS project on the **Free plan** in **Europe (Stockholm), `eu-north-1`**. AWS CLI **2.39.3**, browser-based sign-in and the local `platypus-dev` profile were verified in the learner's terminal. The user installed **25 AWS skills**, `uv` **0.13.7** and Codex CLI **0.166.0**. The AWS wizard could not finish MCP configuration on Windows; a manual `codex.cmd mcp add` registered `aws-mcp` with profile `platypus-dev` and default operation Region `eu-north-1`. After a client restart, the coordinator successfully called **STS GetCallerIdentity through MCP**, matching the project identity previously checked in the terminal. This verifies authenticated agent access, not every permission needed for deployment.
 
-The reviewed first-deployment proposal uses private S3 storage, CloudFront delivery and a Lambda Event Function serving the existing 25 examples. PostgreSQL follows as a separately estimated stage. Infrastructure code, cloud configuration, deployment and rollback verification are still to be implemented. Free-plan credits and allowances have conditions and expiry; deployment or spending requires a separately agreed step.
+The reviewed first-deployment proposal uses private S3 storage, CloudFront delivery and a Lambda Event Function serving the existing 25 examples. PostgreSQL follows as a separately estimated stage. Deployment preparation is implemented and locally verified: three CloudFormation templates, a Lambda adapter, immutable frontend/server packaging, offline operation plans and a packaged-layout preview. Independent review 024 records the findings and remaining cloud checks. No application resources have been created. Free-plan credits and allowances have conditions and expiry; deployment or spending requires a separately agreed step.
 
 - [First AWS deployment architecture](docs/architecture/019-aws-first-deployment-architecture.md)
 - [Cost assumptions, estimates and teardown](docs/research/020-aws-cost-plan.md)
 - [Independent planning review](docs/reviews/021-aws-deployment-planning-review.md)
 
 AWS access credentials stay outside the repository. AWS account access is not needed to run the current local application.
+
+To inspect the already built application in its deployment layout, prepare a new local release and keep its preview terminal running:
+
+```powershell
+npm.cmd run aws:prepare -- --release preview-a --origin http://localhost:4400
+npm.cmd run aws:preview -- --manifest .local/aws/releases/preview-a/manifest.json
+```
+
+Open **http://localhost:4400/support/tickets**. Use a new release identifier if that directory already exists. This serves packaged Angular/React/Vue assets and the ZIP-extracted Lambda handler locally; it is not an AWS deployment. Source localhost settings remain unchanged. See [deployment preparation commands and limits](infrastructure/README.md).
+
+`npm.cmd run aws:validate` checks templates and Guard policies; `npm.cmd run test:aws` checks real packaging, browser loading, offline gates and update/rollback plans. The installed account currently has five concurrent Lambda executions available. The planned reservation of two is unavailable under that quota; the target stays unresolved until a separate, explicit concurrency decision. A concurrency quota is not a monthly spending limit.
 
 ## Start locally
 
@@ -260,3 +271,6 @@ See the [local Git baseline report](docs/implementation/010-git-baseline.md).
 - [First AWS deployment proposal](docs/architecture/019-aws-first-deployment-architecture.md)
 - [AWS cost plan](docs/research/020-aws-cost-plan.md)
 - [AWS planning review](docs/reviews/021-aws-deployment-planning-review.md)
+- [Lambda adapter](docs/implementation/022-lambda-event-adapter.md)
+- [Deployment preparation](docs/implementation/023-aws-deployment-preparation.md)
+- [Deployment preparation review](docs/reviews/024-aws-deployment-preparation-review.md)

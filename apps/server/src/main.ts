@@ -1,4 +1,5 @@
-import { createTicketServer, defaultAllowedOrigins } from './server.js';
+import { createTicketServer } from './server.js';
+import { allowedOriginsFromEnvironment } from './ticket-application.js';
 import { FixtureTicketRepository } from './ticket-repository.js';
 
 try {
@@ -10,19 +11,7 @@ try {
   )
     throw new Error('PORT must be an integer between 1 and 65535.');
   const port = Number(portText);
-  const origins =
-    process.env['ALLOWED_ORIGINS']?.split(',').map((value) => value.trim()) ??
-    defaultAllowedOrigins;
-  for (const origin of origins) {
-    const parsed = new URL(origin);
-    if (
-      !['http:', 'https:'].includes(parsed.protocol) ||
-      parsed.origin !== origin
-    )
-      throw new Error(
-        'ALLOWED_ORIGINS must contain comma-separated HTTP origins.',
-      );
-  }
+  const origins = allowedOriginsFromEnvironment(process.env['ALLOWED_ORIGINS']);
   const server = createTicketServer({
     repository: new FixtureTicketRepository(),
     allowedOrigins: origins,

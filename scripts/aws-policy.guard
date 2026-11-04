@@ -1,0 +1,22 @@
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+rule PRIVATE_BUCKETS when %buckets !empty {
+  %buckets.Properties.PublicAccessBlockConfiguration {
+    BlockPublicAcls == true
+    IgnorePublicAcls == true
+    BlockPublicPolicy == true
+    RestrictPublicBuckets == true
+  }
+}
+rule ENCRYPTED_BUCKETS when %buckets !empty {
+  %buckets.Properties.BucketEncryption.ServerSideEncryptionConfiguration[*].ServerSideEncryptionByDefault.SSEAlgorithm == 'AES256'
+}
+
+let urls = Resources.*[ Type == 'AWS::Lambda::Url' ]
+rule PRIVATE_FUNCTION_URLS when %urls !empty {
+  %urls.Properties.AuthType == 'AWS_IAM'
+}
+
+let logs = Resources.*[ Type == 'AWS::Logs::LogGroup' ]
+rule BOUNDED_LOG_RETENTION when %logs !empty {
+  %logs.Properties.RetentionInDays == 7
+}

@@ -1,0 +1,195 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Private fictional application artifacts with explicit retained-bucket ownership and distribution-scoped access.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "infrastructure/README.md",
+          "has": "Bootstrap, ownership, release and deletion constraints",
+          "scope": "shared"
+        }
+      ]
+    }
+  },
+  "Parameters": {
+    "DistributionId": {
+      "Type": "String",
+      "Description": "Set only after the edge stack exists; empty keeps the bucket private.",
+      "Default": "",
+      "AllowedPattern": "^$|^[A-Z0-9]{8,32}$"
+    }
+  },
+  "Conditions": {
+    "HasDistribution": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "DistributionId"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Artifacts": {
+      "Type": "AWS::S3::Bucket",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Immutable release keys replace object versioning for public fictional build output. Retain prevents implicit data deletion.",
+          "must": [
+            "No website endpoint or public access.",
+            "No versioning: releases retain prior complete graphs under distinct keys.",
+            "Retained bucket must be inventoried, emptied and explicitly removed after reviewed teardown."
+          ]
+        }
+      },
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "ArtifactsPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "One stack owns the entire bucket policy. Adding the distribution later breaks bootstrap dependency cycles.",
+          "must": [
+            "Never grant CloudFront read access to _deploy or _releases.",
+            "Keep HTTPS denial and both distribution/account conditions."
+          ]
+        }
+      },
+      "Properties": {
+        "Bucket": {
+          "Ref": "Artifacts"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DenyInsecureTransport",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": ["Artifacts", "Arn"]
+                },
+                {
+                  "Fn::Sub": "${Artifacts.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Fn::If": [
+                "HasDistribution",
+                {
+                  "Sid": "AllowOnlyFrontendFromThisDistribution",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "cloudfront.amazonaws.com"
+                  },
+                  "Action": "s3:GetObject",
+                  "Resource": [
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/index.html"
+                    },
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/runtime-config.json"
+                    },
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/favicon.svg"
+                    },
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/main-*.js"
+                    },
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/styles-*.css"
+                    },
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/chunk-*.js"
+                    },
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/mfe/*"
+                    }
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "AWS:SourceAccount": {
+                        "Ref": "AWS::AccountId"
+                      },
+                      "AWS:SourceArn": {
+                        "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${DistributionId}"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Ref": "AWS::NoValue"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "BucketName": {
+      "Description": "Owned artifact bucket; retained on stack deletion.",
+      "Value": {
+        "Ref": "Artifacts"
+      }
+    },
+    "BucketRegionalDomainName": {
+      "Description": "S3 REST origin, never its website endpoint.",
+      "Value": {
+        "Fn::GetAtt": ["Artifacts", "RegionalDomainName"]
+      }
+    }
+  }
+}

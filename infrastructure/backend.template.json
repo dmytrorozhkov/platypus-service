@@ -1,0 +1,341 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Read-only Node event handler with explicit concurrency choice, immutable published revisions and stack-managed alias rollback.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "infrastructure/README.md",
+          "has": "Bootstrap, ownership, release and deletion constraints",
+          "scope": "shared"
+        }
+      ]
+    }
+  },
+  "Parameters": {
+    "PackageBucket": {
+      "Type": "String",
+      "Description": "Artifact bucket from the storage stack.",
+      "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+    },
+    "PackageKey": {
+      "Type": "String",
+      "Description": "Immutable reviewed backend ZIP key.",
+      "AllowedPattern": "^_deploy/backend/[a-z0-9-]{1,48}\\.zip$"
+    },
+    "PackageSha256": {
+      "Type": "String",
+      "Description": "Base64 SHA-256 of the actual ZIP.",
+      "AllowedPattern": "^[A-Za-z0-9+/]{43}=$"
+    },
+    "AllowedOrigin": {
+      "Type": "String",
+      "Description": "Exact distribution HTTPS origin; bootstrap.invalid denies browser access before edge setup.",
+      "AllowedPattern": "^https://[a-z0-9.-]+$",
+      "Default": "https://bootstrap.invalid"
+    },
+    "BackendRevision": {
+      "Type": "String",
+      "Description": "SHA-256 of ZIP plus exact allowed origin; forces code/configuration version publication.",
+      "AllowedPattern": "^[a-f0-9]{64}$"
+    },
+    "ConcurrencyMode": {
+      "Type": "String",
+      "Description": "No default. reserved-two needs available quota; account-cap-five needs explicit review and fresh account quota evidence.",
+      "AllowedValues": ["reserved-two", "account-cap-five"]
+    },
+    "RollbackVersion": {
+      "Type": "String",
+      "Description": "Existing version of this same function for alias-only rollback; empty selects this revision.",
+      "Default": "",
+      "AllowedPattern": "^$|^[1-9][0-9]*$"
+    }
+  },
+  "Conditions": {
+    "UseReservedTwo": {
+      "Fn::Equals": [
+        {
+          "Ref": "ConcurrencyMode"
+        },
+        "reserved-two"
+      ]
+    },
+    "UseRollback": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "RollbackVersion"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Own the log group before invocation so the execution role needs no CreateLogGroup permission.",
+          "must": [
+            "Seven-day retention; no ticket bodies or credentials in logs.",
+            "Delete this temporary diagnostic group during explicit teardown; no application records belong here."
+          ]
+        }
+      },
+      "Properties": {
+        "RetentionInDays": 7,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      },
+      "DeletionPolicy": "Delete",
+      "UpdateReplacePolicy": "Delete"
+    },
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Runtime imports bundled fictional fixtures and only needs platform log writes. No AWS SDK application calls or broad managed role.",
+          "must": [
+            "Scope log actions to this log group.",
+            "Lambda service trust follows the documented execution-role policy; do not invent unsupported trust context keys."
+          ]
+        }
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "WriteOnlyOwnLogs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                  "Resource": {
+                    "Fn::GetAtt": ["Logs", "Arn"]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "Function": {
+      "Type": "AWS::Lambda::Function",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Classic Event Function has no HTTP listener, VPC, provisioned capacity or database. Configuration fingerprint changes even for configuration-only releases.",
+          "must": [
+            "Current account quota five cannot reserve two under the unreserved-buffer rule.",
+            "Account-cap-five is an explicit alternative, not an automatic fallback.",
+            "Do not remove the required concurrency-mode decision."
+          ]
+        }
+      },
+      "Properties": {
+        "Runtime": "nodejs24.x",
+        "Architectures": ["arm64"],
+        "Handler": "lambda.handler",
+        "MemorySize": 256,
+        "Timeout": 3,
+        "EphemeralStorage": {
+          "Size": 512
+        },
+        "Role": {
+          "Fn::GetAtt": ["ExecutionRole", "Arn"]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "PackageBucket"
+          },
+          "S3Key": {
+            "Ref": "PackageKey"
+          }
+        },
+        "Description": {
+          "Fn::Sub": "Platypus revision ${BackendRevision}"
+        },
+        "Environment": {
+          "Variables": {
+            "ALLOWED_ORIGINS": {
+              "Ref": "AllowedOrigin"
+            }
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "Logs"
+          }
+        },
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "UseReservedTwo",
+            2,
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "Version": {
+      "Type": "AWS::Lambda::Version",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Replacement snapshots the updated code and exact origin. Retain previous versions for deliberate rollback; deleting the function eventually removes versions.",
+          "must": [
+            "Change BackendRevision whenever code or origin changes.",
+            "Version depends on completed function configuration update."
+          ]
+        }
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "CodeSha256": {
+          "Ref": "PackageSha256"
+        },
+        "Description": {
+          "Fn::Sub": "Revision ${BackendRevision}"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "LiveAlias": {
+      "Type": "AWS::Lambda::Alias",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "A stable alias keeps the URL unchanged and supports rollback through stack parameters without out-of-band alias drift.",
+          "must": [
+            "RollbackVersion must be verified as a retained version of this function."
+          ]
+        }
+      },
+      "Properties": {
+        "Name": "live",
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "FunctionVersion": {
+          "Fn::If": [
+            "UseRollback",
+            {
+              "Ref": "RollbackVersion"
+            },
+            {
+              "Fn::GetAtt": ["Version", "Version"]
+            }
+          ]
+        }
+      }
+    },
+    "FunctionUrl": {
+      "Type": "AWS::Lambda::Url",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Only signed origin requests reach the read-only API; edge stack owns distribution-scoped invoke grants.",
+          "must": [
+            "No NONE auth or duplicate CORS settings.",
+            "URL qualifier is the stable alias name."
+          ]
+        }
+      },
+      "Properties": {
+        "AuthType": "AWS_IAM",
+        "InvokeMode": "BUFFERED",
+        "TargetFunctionArn": {
+          "Ref": "Function"
+        },
+        "Qualifier": "live"
+      },
+      "DependsOn": "LiveAlias"
+    }
+  },
+  "Outputs": {
+    "FunctionArn": {
+      "Description": "Unqualified owned function ARN.",
+      "Value": {
+        "Fn::GetAtt": ["Function", "Arn"]
+      }
+    },
+    "FunctionName": {
+      "Description": "Owned function name for checks and teardown.",
+      "Value": {
+        "Ref": "Function"
+      }
+    },
+    "AliasArn": {
+      "Description": "Live alias ARN for distribution permissions.",
+      "Value": {
+        "Ref": "LiveAlias"
+      }
+    },
+    "Version": {
+      "Description": "Published revision version, even when live alias is rolled back.",
+      "Value": {
+        "Fn::GetAtt": ["Version", "Version"]
+      }
+    },
+    "FunctionUrl": {
+      "Description": "Signed API origin URL.",
+      "Value": {
+        "Fn::GetAtt": ["FunctionUrl", "FunctionUrl"]
+      }
+    },
+    "LogGroup": {
+      "Description": "Owned seven-day log group.",
+      "Value": {
+        "Ref": "Logs"
+      }
+    }
+  }
+}

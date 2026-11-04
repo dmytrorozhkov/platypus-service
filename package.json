@@ -29,9 +29,15 @@
     "serve:support": "node scripts/serve-local.mjs support",
     "start:server": "npm run start --workspace @platypus/server",
     "test:server": "npm run build --workspace @platypus/server && npm run test --workspace @platypus/server",
-    "test:startup": "node --test scripts/workspace-processes.test.mjs"
+    "test:startup": "node --test scripts/workspace-processes.test.mjs",
+    "aws:prepare": "node scripts/aws/prepare.mjs",
+    "aws:plan": "node scripts/aws/plan.mjs",
+    "aws:preview": "node scripts/aws/preview.mjs",
+    "aws:validate": "node scripts/validate-aws.mjs",
+    "test:aws": "node --test scripts/aws/*.test.mjs"
   },
   "devDependencies": {
+    "@aws/cloudformation-validate": "1.15.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
     "angular-eslint": "22.6.0",

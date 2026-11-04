@@ -1,0 +1,10 @@
+# Task 022 — Lambda Event Function adapter
+
+Status: implemented, locally verified and independently reviewed in 024; cloud deployment not performed. Date: November 4, 2026.
+Branch: feature/aws-deployment-preparation, based on 26827c1.
+
+Read AGENTS.md, PROJECT_PLAN.md 5.23/5.26/5.28/5.29 and architecture 019. Own only apps/server/** and docs/implementation/022-lambda-event-adapter.md. Root owns shared files, dependencies outside that workspace and integration. Parallel owner aws_architecture owns infrastructure/ and scripts/aws/. No commits, branch switches, cloud API operations, existing-service shutdowns or subagents.
+
+Implement a small ordinary on-demand Lambda Event Function handler using Function URL payload v2 and the existing 25-example repository. Extract transport-independent request/response behavior so local HTTP and Lambda share exact routing, allowed-origin checks, errors, no-store headers and collection contract. Keep current localhost startup, signals and ready protocol. Preserve CORS/OPTIONS and method behavior; do not pretend HEAD is an existing GET implementation. The cloud entry imports no main/listener, compiles with the existing TypeScript setup, requires no runtime dependencies and packages JSON plus ESM metadata correctly. Coordinate handler filename/export and package files with infrastructure owner before final packaging.
+
+Use installed AWS serverless skills and current primary docs; the chosen mode is Event Function on-demand + Function URL, already decided from the cost proposal. Do not switch to Web Functions, API Gateway, a database or authentication. Search registry skill IDs via MCP before retrieving remote skills. Test meaningful local HTTP/Lambda parity, payload/path/header normalization, errors, origin rejection and absence of server startup at import. Keep malformed external input failures readable, not crashes or success defaults. Use existing test style; no production cloud calls or paid tools. Run server build/typecheck/tests and owned formatting. Report exact files, commands, evidence and limits, then return for review.
