@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: local ticket-server task 014 implemented, locally verified and independently reviewed; user acceptance pending.
+Current phase: local ticket-server task 014 implemented, locally verified, independently reviewed and accepted by the user. Local PostgreSQL planning is proposed next.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -519,7 +519,7 @@ Verified: five workspace builds/typechecks, zero-warning lint, formatting, three
 
 Commands: npm.cmd ci, npm.cmd run build, npm.cmd start; open http://localhost:4200/support/tickets. Default API: http://localhost:3000. Independent server: npm.cmd run build --workspace @platypus/server, then npm.cmd run start:server. README records address/origin configuration and process ownership. The server still uses public fictional learning data; persistence, identity/access checks, server querying, the 100,000-record dataset, cloud and paid resources remain later work.
 
-Work uses feature/local-ticket-server. Assignment: docs/agent-tasks/014-local-ticket-server.md. Implementation: docs/implementation/014-local-ticket-server.md. Independent review: docs/reviews/015-local-ticket-server-review.md; no remaining confirmed blocker. The reviewed stage is ready for its intentional local Git checkpoint and demonstration. User acceptance remains pending.
+Work uses feature/local-ticket-server. Assignment: docs/agent-tasks/014-local-ticket-server.md. Implementation: docs/implementation/014-local-ticket-server.md. Independent review: docs/reviews/015-local-ticket-server-review.md; no remaining confirmed blocker. The reviewed stage was saved in commit 5532511; the coordinator verified a clean worktree afterward. The user subsequently confirmed the /api/tickets response is present, accepting the demonstrated slice. This confirmation does not claim the user personally executed every automated recovery or shutdown check.
 
 ## 6. Costs — agreed approach
 
@@ -577,8 +577,8 @@ The user confirmed the Native Federation application works. Before checkpoint 01
 
 1. Completed checkpoint 010: local main repository, verified ignore/LF policies, independent review 011, and initial commit 6d07da7 containing 78 authored files. Post-commit checks confirmed a clean worktree and no remotes. Assignment: docs/agent-tasks/010-git-baseline.md; evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. Completion documentation is recorded in a separate follow-up commit so no pre-commit claim substitutes for verification.
 2. Task 012 is implemented and locally verified: independent Angular Support, Tickets navigation, 25 temporary fictional records, shared styling, SignalStore state, loading/empty/error/retry, and cancellation cleanup. Independent review 013 found no remaining confirmed blocker, commit 9163b2d saved the reviewed stage, and the user confirmed the visible table works. Server querying, authorization, PostgreSQL persistence, and full heavy-table behavior remain later agreed work.
-3. Task 014 is implemented and locally verified: an independent local Node.js server supplies GET /api/health and GET /api/tickets with the same 25 examples in an items/total response. Support loads through its configurable adapter and retains loading/error/Retry/cancellation behavior. Independent review 015 found no remaining confirmed blocker; user acceptance precedes the next stage. See section 5.23 and docs/implementation/014-local-ticket-server.md. PostgreSQL persistence follows as a separate stage.
-4. Gradually add persistent data, identity/access, large tables, analytics, RAG, and AI quality checks.
+3. Task 014 is implemented and locally verified: an independent local Node.js server supplies GET /api/health and GET /api/tickets with the same 25 examples in an items/total response. Support loads through its configurable adapter and retains loading/error/Retry/cancellation behavior. Independent review 015 found no remaining confirmed blocker; commit 5532511 saved the reviewed stage and the user confirmed the server response. See section 5.23 and docs/implementation/014-local-ticket-server.md. PostgreSQL persistence follows as a separate stage.
+4. Proposed next small step: prepare a data-specialist assignment for local PostgreSQL. Define the initial ticket schema, repeatable schema creation and loading of the same 25 examples, the server repository replacement and persistence/restart checks. Choose the local launch method after inspecting the machine. A read-only command/service check found no docker, psql or pg_ctl command on PATH and no matching PostgreSQL/Docker service; this is not an exhaustive software inventory. No database installation, process or cloud resource is approved or created by this planning proposal. Later stages add identity/access, large tables, analytics, RAG and AI quality checks.
 5. Agree on costs before paid connections, then deploy to AWS.
 
 Refine this plan throughout the course. Architectural assumptions and prepared plans must not be recorded as completed implementation.
