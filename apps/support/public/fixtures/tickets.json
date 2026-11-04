@@ -1,0 +1,227 @@
+[
+  {
+    "number": "PS-1001",
+    "subject": "Cannot complete account invitation",
+    "organization": "Northstar Studio",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-05T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  },
+  {
+    "number": "PS-1002",
+    "subject": "Import reports duplicate rows",
+    "organization": "Cedar Labs",
+    "status": "In progress",
+    "assignee": "Jordan Lee",
+    "createdAt": "2026-10-06T09:00:00Z",
+    "updatedAt": "2026-11-02T14:30:00Z"
+  },
+  {
+    "number": "PS-1003",
+    "subject": "Reset account access",
+    "organization": "Harbor Works",
+    "status": "Awaiting customer",
+    "assignee": "Sam Rivera",
+    "createdAt": "2026-10-07T09:00:00Z",
+    "updatedAt": "2026-11-03T14:30:00Z"
+  },
+  {
+    "number": "PS-1004",
+    "subject": "Daily report is missing",
+    "organization": "Maple Logistics",
+    "status": "Closed",
+    "assignee": "Avery Morgan",
+    "createdAt": "2026-10-08T09:00:00Z",
+    "updatedAt": "2026-11-04T14:30:00Z"
+  },
+  {
+    "number": "PS-1005",
+    "subject": "Add a new team member",
+    "organization": "Orbit Learning",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-09T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  },
+  {
+    "number": "PS-1006",
+    "subject": "Webhook delivery is delayed",
+    "organization": "Northstar Studio",
+    "status": "In progress",
+    "assignee": "Sam Rivera",
+    "createdAt": "2026-10-10T09:00:00Z",
+    "updatedAt": "2026-11-02T14:30:00Z"
+  },
+  {
+    "number": "PS-1007",
+    "subject": "Update organization details",
+    "organization": "Cedar Labs",
+    "status": "Awaiting customer",
+    "assignee": "Avery Morgan",
+    "createdAt": "2026-10-11T09:00:00Z",
+    "updatedAt": "2026-11-03T14:30:00Z"
+  },
+  {
+    "number": "PS-1008",
+    "subject": "Export includes old columns",
+    "organization": "Harbor Works",
+    "status": "Closed",
+    "assignee": "Jordan Lee",
+    "createdAt": "2026-10-12T09:00:00Z",
+    "updatedAt": "2026-11-04T14:30:00Z"
+  },
+  {
+    "number": "PS-1009",
+    "subject": "Cannot upload contacts file",
+    "organization": "Maple Logistics",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-13T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  },
+  {
+    "number": "PS-1010",
+    "subject": "Change notification preferences",
+    "organization": "Orbit Learning",
+    "status": "In progress",
+    "assignee": "Avery Morgan",
+    "createdAt": "2026-10-14T09:00:00Z",
+    "updatedAt": "2026-11-02T14:30:00Z"
+  },
+  {
+    "number": "PS-1011",
+    "subject": "Help with initial setup",
+    "organization": "Northstar Studio",
+    "status": "Awaiting customer",
+    "assignee": "Jordan Lee",
+    "createdAt": "2026-10-15T09:00:00Z",
+    "updatedAt": "2026-11-03T14:30:00Z"
+  },
+  {
+    "number": "PS-1012",
+    "subject": "Dashboard figures need clarification",
+    "organization": "Cedar Labs",
+    "status": "Closed",
+    "assignee": "Sam Rivera",
+    "createdAt": "2026-10-16T09:00:00Z",
+    "updatedAt": "2026-11-04T14:30:00Z"
+  },
+  {
+    "number": "PS-1013",
+    "subject": "Request access for a colleague",
+    "organization": "Harbor Works",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-17T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  },
+  {
+    "number": "PS-1014",
+    "subject": "Import date format question",
+    "organization": "Maple Logistics",
+    "status": "In progress",
+    "assignee": "Jordan Lee",
+    "createdAt": "2026-10-18T09:00:00Z",
+    "updatedAt": "2026-11-02T14:30:00Z"
+  },
+  {
+    "number": "PS-1015",
+    "subject": "Invitation link has expired",
+    "organization": "Orbit Learning",
+    "status": "Awaiting customer",
+    "assignee": "Sam Rivera",
+    "createdAt": "2026-10-19T09:00:00Z",
+    "updatedAt": "2026-11-03T14:30:00Z"
+  },
+  {
+    "number": "PS-1016",
+    "subject": "Billing contact needs updating",
+    "organization": "Northstar Studio",
+    "status": "Closed",
+    "assignee": "Avery Morgan",
+    "createdAt": "2026-10-20T09:00:00Z",
+    "updatedAt": "2026-11-04T14:30:00Z"
+  },
+  {
+    "number": "PS-1017",
+    "subject": "Report timezone question",
+    "organization": "Cedar Labs",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-21T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  },
+  {
+    "number": "PS-1018",
+    "subject": "Missing ticket notification",
+    "organization": "Harbor Works",
+    "status": "In progress",
+    "assignee": "Sam Rivera",
+    "createdAt": "2026-10-22T09:00:00Z",
+    "updatedAt": "2026-11-02T14:30:00Z"
+  },
+  {
+    "number": "PS-1019",
+    "subject": "Archive an inactive user",
+    "organization": "Maple Logistics",
+    "status": "Awaiting customer",
+    "assignee": "Avery Morgan",
+    "createdAt": "2026-10-23T09:00:00Z",
+    "updatedAt": "2026-11-03T14:30:00Z"
+  },
+  {
+    "number": "PS-1020",
+    "subject": "CSV upload rejects a header",
+    "organization": "Orbit Learning",
+    "status": "Closed",
+    "assignee": "Jordan Lee",
+    "createdAt": "2026-10-24T09:00:00Z",
+    "updatedAt": "2026-11-04T14:30:00Z"
+  },
+  {
+    "number": "PS-1021",
+    "subject": "Troubleshoot a failed sync",
+    "organization": "Northstar Studio",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-25T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  },
+  {
+    "number": "PS-1022",
+    "subject": "Correct organization display name",
+    "organization": "Cedar Labs",
+    "status": "In progress",
+    "assignee": "Avery Morgan",
+    "createdAt": "2026-10-26T09:00:00Z",
+    "updatedAt": "2026-11-02T14:30:00Z"
+  },
+  {
+    "number": "PS-1023",
+    "subject": "Explain report refresh timing",
+    "organization": "Harbor Works",
+    "status": "Awaiting customer",
+    "assignee": "Jordan Lee",
+    "createdAt": "2026-10-27T09:00:00Z",
+    "updatedAt": "2026-11-03T14:30:00Z"
+  },
+  {
+    "number": "PS-1024",
+    "subject": "Update recovery email",
+    "organization": "Maple Logistics",
+    "status": "Closed",
+    "assignee": "Sam Rivera",
+    "createdAt": "2026-10-28T09:00:00Z",
+    "updatedAt": "2026-11-04T14:30:00Z"
+  },
+  {
+    "number": "PS-1025",
+    "subject": "Confirm completed data import",
+    "organization": "Orbit Learning",
+    "status": "New",
+    "assignee": null,
+    "createdAt": "2026-10-29T09:00:00Z",
+    "updatedAt": "2026-11-01T14:30:00Z"
+  }
+]

@@ -22,5 +22,10 @@ export const routes: Routes = [
     component: RemoteHost,
     data: { remote: 'administration' },
   },
+  {
+    path: 'support/tickets',
+    component: RemoteHost,
+    data: { remote: 'support' },
+  },
   { path: '**', component: NotFound },
 ];

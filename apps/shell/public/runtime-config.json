@@ -12,6 +12,12 @@
       "cssUrls": ["http://localhost:4302/style.css"],
       "remoteEntryUrl": "http://localhost:4302/remoteEntry.json",
       "exposedModule": "./mount"
+    },
+    "support": {
+      "contractVersion": 1,
+      "cssUrls": ["http://localhost:4303/styles.css"],
+      "remoteEntryUrl": "http://localhost:4303/remoteEntry.json",
+      "exposedModule": "./mount"
     }
   }
 }

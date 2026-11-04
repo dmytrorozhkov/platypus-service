@@ -1,8 +1,8 @@
-﻿# Platypus Service — Learning Project Plan
+# Platypus Service — Learning Project Plan
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: local Git baseline complete and verified; next proposed stage is planning the first Support product slice.
+Current phase: Support ticket-list task 012 implemented, locally verified and independently reviewed; user acceptance pending.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -493,6 +493,20 @@ Verified: three independent builds/typechecks, lint, hosting/contract tests, and
 
 Commands remain npm.cmd ci, npm.cmd run build, and npm.cmd start; open http://localhost:4200. Metadata registration failures support Retry; changed registered URLs or cached module corrections can require Reload. A local ignored rollback snapshot with 67 files and hashes is retained under .local/backups/008-native-federation-20261103-234745. No vendor patch, framework downgrade, paid resource, business feature, or cloud deployment was added. Older reports remain historical records. The user subsequently confirmed that the migrated application works.
 
+## 5.22. First Support ticket list — implemented and locally verified
+
+The user approved task 012 after confirming that the 25 local records are temporary examples and that later data comes through Node.js from PostgreSQL. The independent Angular Support application now opens through Tickets at /support/tickets, preserving the Analytics root redirect and existing React/Vue routes. It displays all seven agreed columns, the four statuses, Unassigned, and dates labelled UTC (Coordinated Universal Time). Shared Tailwind utilities use the su: prefix without remote Preflight.
+
+Support uses component-scoped NgRx SignalStore and a small asynchronous TicketData adapter fetching validated fictional JSON. Loading, empty, error and Retry states are implemented. Store destruction aborts the active request; late results cannot replace state. The synchronous mounting handle safely disposes an Angular application created after navigation cancellation. These behaviors were exercised in a real browser.
+
+Maintained @angular-architects/native-federation 22.2.4 and @ngrx/signals 22.0.1 were added after compatibility checks. Angular 22.2.4, CLI/build 22.2.5 and TypeScript 6.0.3 are preserved. The builder emits real federation v4 metadata with ./mount and private dependencies; the existing isolated host namespaces and additive import maps remain. Independent review identified a built standalone module-script issue, corrected using the builder's public configuration and verified in the built standalone browser run.
+
+Verified: four application builds/typechecks, lint with zero warnings, formatting, both hosting/contract tests, 24 development-Shell browser scenario groups, 26 built-Shell/standalone groups, and a further 26-group source-Support-standalone variant. Browser checks cover all rows/columns, direct links, refresh, repeated navigation/history, states and recovery, cancelled requests, late startup destruction, theme and contained mobile table overflow. Analytics-only and Support-only modifications appeared through Shell after their own rebuilds while the other three build-directory hashes stayed unchanged; original sources were restored and rebuilt. Temporary standalone servers were stopped, leaving one integrated development stack. The coordinator separately checked HTTP metadata/fixtures and visually inspected desktop/mobile screenshots.
+
+This first read-only view does not choose the final heavy-table library or add query controls, backend, authentication, databases, ticket details, or AI. The complete agreed table retains server-side querying/access checks, page sizes of 25/50/100, and the 100,000-record learning dataset. Local fixtures are a temporary development source. Existing development-tool audit findings remain documented in the implementation report; this stage adds no paid/cloud resource.
+
+Commands remain npm.cmd ci, npm.cmd run build, and npm.cmd start; open http://localhost:4200/support/tickets. Support can also build and run independently. Work is on feature/support-ticket-list, preserving the main baseline. Assignment: docs/agent-tasks/012-support-ticket-list.md. Implementation: docs/implementation/012-support-ticket-list.md. Independent review task: docs/agent-tasks/013-support-ticket-list-review.md. Independent review 013 found no remaining confirmed blocker; see docs/reviews/013-support-ticket-list-review.md. This bounded stage forms the intentional local Git checkpoint. User acceptance and the next implementation stage remain pending.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.
@@ -545,10 +559,10 @@ The 100,000-ticket dataset is agreed in section 5.8. Light/dark themes are not y
 
 ## 9. Proposed next steps — subject to refinement
 
-The user confirmed the Native Federation application works. A read-only Git check on November 4, 2026 confirmed that this directory is not yet inside a Git repository.
+The user confirmed the Native Federation application works. Before checkpoint 010, a read-only Git check on November 4, 2026 confirmed that the directory was not yet inside a repository; checkpoint 010 subsequently created the baseline recorded below.
 
 1. Completed checkpoint 010: local main repository, verified ignore/LF policies, independent review 011, and initial commit 6d07da7 containing 78 authored files. Post-commit checks confirmed a clean worktree and no remotes. Assignment: docs/agent-tasks/010-git-baseline.md; evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. Completion documentation is recorded in a separate follow-up commit so no pre-commit claim substitutes for verification.
-2. Define the first Support product slice and its acceptance criteria, clarifying relevant ticket workflows and permissions.
+2. Task 012 is implemented and locally verified: independent Angular Support, Tickets navigation, 25 temporary fictional records, shared styling, SignalStore state, loading/empty/error/retry, and cancellation cleanup. Independent review 013 found no remaining confirmed blocker; user acceptance precedes the next stage. Server querying, authorization, PostgreSQL persistence, and full heavy-table behavior remain later agreed work.
 3. Implement bounded frontend and backend stages through agents, independent review, and user acceptance.
 4. Gradually add persistent data, identity/access, large tables, analytics, RAG, and AI quality checks.
 5. Agree on costs before paid connections, then deploy to AWS.

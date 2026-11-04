@@ -69,6 +69,20 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
               >&rsaquo;</span
             >
           </a>
+          <a
+            class="sh:flex sh:items-center sh:gap-3 sh:rounded-[9px] sh:px-3.5 sh:py-[13px] sh:text-sm sh:no-underline sh:[&:not(.active):hover]:bg-[#242a48] sh:max-wide:gap-2 sh:max-wide:px-2.5 sh:max-wide:py-3 sh:max-wide:text-xs"
+            routerLink="/support/tickets"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            ><svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="14" rx="2" />
+              <path d="M8 9h8M8 13h6" /></svg
+            >Tickets<span
+              class="sh:ml-auto sh:text-[23px] sh:leading-[14px] sh:opacity-70"
+              aria-hidden="true"
+              >&rsaquo;</span
+            ></a
+          >
         </nav>
         <div
           class="sh:mt-auto sh:flex sh:items-center sh:gap-[9px] sh:px-3.5 sh:pt-[34px] sh:text-[11px] sh:text-[#a3aac5] sh:max-wide:hidden"

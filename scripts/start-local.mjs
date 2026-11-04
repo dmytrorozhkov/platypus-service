@@ -16,6 +16,7 @@ function stop(code = 0) {
 try {
   servers.push(await startApplication('analytics'));
   servers.push(await startApplication('administration'));
+  servers.push(await startApplication('support'));
   if (preview) servers.push(await startApplication('shell'));
   else {
     shell = await startShell();
@@ -31,7 +32,7 @@ try {
   process.on('SIGTERM', () => stop());
 } catch (error) {
   console.error(
-    'Workspace could not start. Build remotes first and ensure ports 4200, 4301, and 4302 are free.',
+    'Workspace could not start. Build remotes first and ensure ports 4200, 4301, 4302, and 4303 are free.',
     error.message,
   );
   stop(1);

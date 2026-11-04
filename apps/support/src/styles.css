@@ -1,0 +1,63 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(su);
+@import '@platypus/theme/tokens.css';
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(su) source(none);
+@source "./";
+@layer components {
+  .ps-support {
+    font-family: var(--su-font-sans);
+    color: var(--su-color-ink);
+    min-width: 0;
+  }
+  .ps-support table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 1060px;
+    text-align: left;
+  }
+  .ps-support th {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.035em;
+    background: #f8f9fc;
+    color: #697189;
+  }
+  .ps-support th,
+  .ps-support td {
+    padding: 16px;
+    border-bottom: 1px solid var(--su-color-line);
+  }
+  .ps-support td {
+    font-size: 12px;
+    vertical-align: top;
+  }
+  .ps-support tr:last-child td {
+    border-bottom: 0;
+  }
+  .ps-support .ticket-status {
+    display: inline-block;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #edf0f8;
+    color: #485a85;
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .ps-support .ticket-status[data-status='In progress'] {
+    background: #efeffd;
+    color: #5656bd;
+  }
+  .ps-support .ticket-status[data-status='Awaiting customer'] {
+    background: #fff3dd;
+    color: #8a5d16;
+  }
+  .ps-support .ticket-status[data-status='Closed'] {
+    background: #edf7f2;
+    color: #386f56;
+  }
+  .ps-support button {
+    font: inherit;
+    cursor: pointer;
+  }
+}

@@ -1,6 +1,6 @@
 import type { RemoteModuleV1 } from '@platypus/mfe-contract';
 
-export type RemoteName = 'analytics' | 'administration';
+export type RemoteName = 'analytics' | 'administration' | 'support';
 export interface RemoteConfiguration {
   contractVersion: 1;
   remoteEntryUrl: string;
@@ -44,7 +44,7 @@ export function validateConfiguration(value: unknown): RuntimeConfiguration {
     throw new Error('Unsupported runtime configuration.');
   }
   const remotes = {} as Record<RemoteName, RemoteConfiguration>;
-  for (const name of ['analytics', 'administration'] as const) {
+  for (const name of ['analytics', 'administration', 'support'] as const) {
     const remote = value['remotes'][name];
     if (
       !isObject(remote) ||

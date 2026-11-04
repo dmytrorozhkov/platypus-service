@@ -5,6 +5,12 @@ import { fileURLToPath } from 'node:url';
 
 export const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const applications = {
+  support: { root: 'apps/support/dist/browser', port: 4303, fallback: false },
+  'support-standalone': {
+    root: 'apps/support/dist/browser',
+    port: 5175,
+    fallback: true,
+  },
   shell: { root: 'apps/shell/dist/browser', port: 4200, fallback: true },
   analytics: {
     root: 'apps/analytics/dist/remote',
@@ -120,7 +126,9 @@ export async function createStaticServer({ root, fallback = false }) {
 export async function startApplication(name) {
   const configuration = applications[name];
   if (!configuration)
-    throw new Error('Choose shell, analytics, or administration.');
+    throw new Error(
+      'Choose shell, analytics, administration, support, or support-standalone.',
+    );
   const server = await createStaticServer({
     root: path.join(projectRoot, configuration.root),
     fallback: configuration.fallback,

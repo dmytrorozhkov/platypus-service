@@ -133,7 +133,11 @@ export class RemoteHost implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly name = this.route.snapshot.data['remote'] as RemoteName;
-  readonly title = this.name === 'analytics' ? 'Analytics' : 'Administration';
+  readonly title = {
+    analytics: 'Analytics',
+    administration: 'Administration',
+    support: 'Tickets',
+  }[this.name];
   readonly state = signal<'loading' | 'ready' | 'error'>('loading');
   readonly message = signal('');
   private generation = 0;
@@ -227,13 +231,17 @@ export class RemoteHost implements AfterViewInit, OnDestroy {
       if (!this.isCurrent(activation)) return;
       const application = module.mount({
         container: this.container.nativeElement,
-        route: ('/' + this.name) as AppRoute,
+        route: (this.name === 'support'
+          ? '/support/tickets'
+          : '/' + this.name) as AppRoute,
         locale: 'en',
         signal: activation.controller.signal,
         navigate: (route) => {
           if (
             this.isCurrent(activation) &&
-            ['/analytics', '/administration'].includes(route)
+            ['/analytics', '/administration', '/support/tickets'].includes(
+              route,
+            )
           ) {
             void this.router.navigateByUrl(route);
           }

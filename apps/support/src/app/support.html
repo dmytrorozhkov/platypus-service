@@ -1,0 +1,112 @@
+<section
+  class="ps-support su:min-w-0 su:font-sans su:text-ink"
+  aria-labelledby="tickets-title"
+  [attr.aria-busy]="store.status() === 'loading'"
+>
+  <p class="su:mb-3 su:text-[10px] su:tracking-[.18em] su:text-eyebrow">
+    SUPPORT WORKSPACE
+  </p>
+  <h1
+    id="tickets-title"
+    class="su:m-0 su:text-[32px] su:font-[650] su:tracking-[-.035em]"
+  >
+    Tickets
+  </h1>
+  <p class="su:mt-3 su:mb-7 su:text-sm su:leading-7 su:text-muted">
+    A shared view of incoming support requests.
+  </p>
+  <div
+    class="su:rounded-panel su:border su:border-line su:bg-white su:shadow-panel"
+  >
+    @switch (store.status()) { @case ('loading') {
+    <div role="status" aria-live="polite" class="su:p-8">
+      <p class="su:text-sm su:text-muted">Loading tickets...</p>
+    </div>
+    } @case ('error') {
+    <div role="alert" class="su:p-8">
+      <h2 class="su:mb-3 su:text-lg su:font-semibold">
+        Tickets are unavailable
+      </h2>
+      <p class="su:mb-5 su:text-sm su:text-muted">{{ store.error() }}</p>
+      <button
+        type="button"
+        class="su:rounded-lg su:border-0 su:bg-brand su:px-4 su:py-2.5 su:text-sm su:font-semibold su:text-white su:focus-visible:outline-2 su:focus-visible:outline-offset-4 su:focus-visible:outline-brand"
+        (click)="store.load()"
+      >
+        Retry
+      </button>
+    </div>
+    } @case ('ready') { @if (store.items().length === 0) {
+    <div role="status" class="su:p-8">
+      <h2 class="su:mb-3 su:text-lg su:font-semibold">No tickets yet</h2>
+      <p class="su:text-sm su:text-muted">
+        There are no support requests to display.
+      </p>
+    </div>
+    } @else {
+    <div
+      class="su:flex su:items-center su:justify-between su:gap-3 su:border-b su:border-line su:px-5 su:py-4"
+    >
+      <h2 class="su:m-0 su:text-sm su:font-semibold">Support requests</h2>
+      <span class="su:text-xs su:text-muted"
+        >{{ store.items().length }} tickets</span
+      >
+    </div>
+    <div
+      class="su:overflow-x-auto su:rounded-b-panel"
+      tabindex="0"
+      role="region"
+      aria-label="Ticket table, scroll horizontally for all columns"
+    >
+      <table>
+        <caption class="su:sr-only">
+          Support requests: number, subject, organization, status, assignee,
+          created and updated dates. Dates use UTC.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Number</th>
+            <th scope="col">Subject</th>
+            <th scope="col">Organization</th>
+            <th scope="col">Status</th>
+            <th scope="col">Assignee</th>
+            <th scope="col">Created (UTC)</th>
+            <th scope="col">Updated (UTC)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ticket of store.items(); track ticket.number) {
+          <tr>
+            <td class="su:whitespace-nowrap su:font-semibold">
+              {{ ticket.number }}
+            </td>
+            <td class="su:min-w-[220px]">{{ ticket.subject }}</td>
+            <td>{{ ticket.organization }}</td>
+            <td>
+              <span class="ticket-status" [attr.data-status]="ticket.status"
+                >{{ ticket.status }}</span
+              >
+            </td>
+            <td>{{ ticket.assignee ?? 'Unassigned' }}</td>
+            <td class="su:whitespace-nowrap">
+              <time [attr.datetime]="ticket.createdAt"
+                >{{ ticket.createdAt | date:'MMM d, y':'UTC':'en-US' }}</time
+              >
+            </td>
+            <td class="su:whitespace-nowrap">
+              <time [attr.datetime]="ticket.updatedAt"
+                >{{ ticket.updatedAt | date:'MMM d, y':'UTC':'en-US' }}</time
+              >
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    } } }
+  </div>
+  <p class="su:mt-5 su:text-xs su:leading-6 su:text-note">
+    Local fictional data for this learning stage. Server data and access
+    controls follow in a later stage.
+  </p>
+</section>

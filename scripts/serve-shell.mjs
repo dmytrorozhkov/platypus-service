@@ -16,17 +16,22 @@ export function stopChild(child) {
   } else child.kill('SIGTERM');
 }
 
-export async function startShell() {
+export async function startAngular(name = 'shell', port = 4200) {
+  if (!['shell', 'support'].includes(name))
+    throw new Error('Unsupported Angular application.');
   const probe = createServer();
   try {
     await new Promise((resolve, reject) => {
       probe.once('error', reject);
-      probe.listen(4200, 'localhost', resolve);
+      probe.listen(port, 'localhost', resolve);
     });
     await new Promise((resolve) => probe.close(resolve));
   } catch {
     throw new Error(
-      'Shell port 4200 is occupied. Stop its current server before starting Shell.',
+      name +
+        ' port ' +
+        port +
+        ' is occupied. Stop its current server before starting it.',
     );
   }
   return spawn(
@@ -37,10 +42,10 @@ export async function startShell() {
       '--host',
       'localhost',
       '--port',
-      '4200',
+      String(port),
     ],
     {
-      cwd: path.join(projectRoot, 'apps/shell'),
+      cwd: path.join(projectRoot, 'apps', name),
       stdio: 'inherit',
       windowsHide: true,
       // Non-interactive mode prevents Angular from offering a different port after a race.
@@ -49,12 +54,18 @@ export async function startShell() {
   );
 }
 
+export function startShell() {
+  return startAngular('shell', 4200);
+}
+
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {
-    const child = await startShell();
+    const child = await (process.argv[2] === 'support'
+      ? startAngular('support', 5175)
+      : startShell());
     child.on('error', (error) => {
       console.error('Shell failed.', error.message);
       process.exitCode = 1;

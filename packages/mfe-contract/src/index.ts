@@ -1,4 +1,4 @@
-export type AppRoute = '/analytics' | '/administration';
+export type AppRoute = '/analytics' | '/administration' | '/support/tickets';
 
 export interface MountContext {
   container: HTMLElement;

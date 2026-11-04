@@ -1,8 +1,8 @@
 ﻿# Platypus Service
 
-A local frontend foundation: an Angular shell opens independent React Analytics and Vue Administration applications through Native Federation.
+A local frontend foundation: an Angular shell opens independent Angular Support, React Analytics and Vue Administration applications through Native Federation.
 
-This is the first integration experiment. It contains no sign-in, business data, charts, backend, cloud resources, or paid services.
+This is the first integration experiment. It includes the first read-only Support list with 25 fictional local tickets. It contains no sign-in, persisted business data, charts, backend, cloud resources, or paid services.
 
 ## Start locally
 
@@ -23,11 +23,11 @@ Then start the integrated workspace:
 npm.cmd start
 ```
 
-Open **http://localhost:4200**. The root opens Analytics; use the menu to open Administration.
+Open **http://localhost:4200**. The root opens Analytics; use the menu to open Tickets or Administration. Tickets also opens directly at http://localhost:4200/support/tickets.
 
-Keep that terminal running. **Ctrl+C stops Shell and both remote servers.** The command fails if a reserved port is occupied; it does not choose another port. If a workspace session is already running, open its URL instead of starting a second copy.
+Keep that terminal running. **Ctrl+C stops Shell and all three remote servers.** The command fails if a reserved port is occupied; it does not choose another port. If a workspace session is already running, open its URL instead of starting a second copy.
 
-Shell source changes rebuild automatically. Integrated React/Vue pages use their **built** artifacts: rebuild the changed remote, then reload the browser document.
+Shell source changes rebuild automatically. Integrated Angular Support/React/Vue pages use their **built** artifacts: rebuild the changed remote, then reload the browser document.
 
 ## Applications and commands
 
@@ -36,15 +36,17 @@ Shell source changes rebuild automatically. Integrated React/Vue pages use their
 | Angular Shell      | `@platypus/shell`          | http://localhost:4200                  | `npm.cmd run build --workspace @platypus/shell`          |
 | React Analytics    | `@platypus/analytics`      | http://localhost:4301/remoteEntry.json | `npm.cmd run build --workspace @platypus/analytics`      |
 | Vue Administration | `@platypus/administration` | http://localhost:4302/remoteEntry.json | `npm.cmd run build --workspace @platypus/administration` |
+| Angular Support    | `@platypus/support`        | http://localhost:4303/remoteEntry.json | `npm.cmd run build --workspace @platypus/support`        |
 
 For independent page development, use separate terminals:
 
 ```powershell
 npm.cmd run dev --workspace @platypus/analytics
 npm.cmd run dev --workspace @platypus/administration
+npm.cmd run dev --workspace @platypus/support
 ```
 
-Standalone pages use http://localhost:5173 and http://localhost:5174. Stop each with Ctrl+C.
+Standalone pages use http://localhost:5173 (Analytics), http://localhost:5174 (Administration), and http://localhost:5175 (Support). Support uses the Angular source dev server; its command checks that the port is free before starting. To verify the built Support standalone page instead, stop its dev server and run `npm.cmd run preview --workspace @platypus/support` on the same port. Stop each with Ctrl+C.
 
 To check the built Shell instead of its development server, stop `npm.cmd start`, then run:
 
@@ -52,11 +54,12 @@ To check the built Shell instead of its development server, stop `npm.cmd start`
 npm.cmd run preview
 ```
 
-For manual separate processes, use `npm.cmd run serve:analytics`, `npm.cmd run serve:administration`, and `npm.cmd run dev --workspace @platypus/shell` in three terminals.
+For manual separate processes, use `npm.cmd run serve:analytics`, `npm.cmd run serve:administration`, `npm.cmd run serve:support`, and `npm.cmd run dev --workspace @platypus/shell` in four terminals.
 
 ## Boundaries
 
 - `apps/shell`: Angular menu, browser routes, loading/error/retry UI, runtime configuration and remote lifecycle.
+- `apps/support`: Angular ticket list, component-scoped NgRx SignalStore, asynchronous fixture data adapter and private Angular runtime.
 - `apps/analytics`: React page, independent ES module and scoped CSS.
 - `apps/administration`: Vue page, independent ES module and scoped CSS.
 - `packages/mfe-contract`: framework-independent types, with no runtime bundle.
@@ -73,6 +76,8 @@ The configuration supplies `remoteEntryUrl`, `exposedModule` (`./mount`), and `c
 
 React and Vue build through **native-federation-vite 0.2.0**, a community Vite adapter backed by official **@softarc/native-federation 4.8.1**. Each `federation.config.mjs` exposes its existing mount adapter. The core generates `remoteEntry.json` and its content-hashed exposed module, plus `importmap.json`. The separate Tailwind `style.css` remains controlled by Shell's stylesheet lifecycle. Deploy those runtime artifacts together; exclude the generated `.nf-cache` build cache.
 
+Angular Support uses the maintained **@angular-architects/native-federation 22.2.4** builder with Angular/build versions matching Shell and **@ngrx/signals 22.0.1**. It exposes `./mount` with private dependencies and generated federation artifacts in `apps/support/dist/browser`. Deploy that directory together; Shell loads only `styles.css`, while `standalone.css` is linked only by the standalone document. The adapter emits native `type="module"` for that document (`esmsInitOptions.shimMode: false`); Shell retains its own shim loader.
+
 Shell uses official **@softarc/native-federation-orchestrator 4.9.0** and **es-module-shims 2.8.4**. It initializes and loads the selected remote lazily; the old custom direct-import loader has been removed. Ordinary Angular CLI builds are retained because Shell does not expose or share Angular modules.
 
 Each remote deliberately declares `shared: {}` and bundles its own framework. Each gets an isolated official orchestrator storage namespace and additive shim import maps, preventing one failed metadata transaction from rolling back another remote's successful initialization. There is **no cross-remote shared-dependency version negotiation** in this setup; review that design before introducing shared Angular libraries or other shared runtimes.
@@ -87,9 +92,9 @@ The local Node server accepts only its mapped build directories, returns JavaScr
 
 ## Shared styling with Tailwind
 
-All three applications use **Tailwind CSS 4.3.4**. Shared colors, typography, radius, shadow, and breakpoint values live in `packages/theme/tokens.css`, exported by the CSS-only `@platypus/theme` workspace. Each application compiles its own styles; there is no shared framework runtime or theme server.
+All four applications use **Tailwind CSS 4.3.4**. Shared colors, typography, radius, shadow, and breakpoint values live in `packages/theme/tokens.css`, exported by the CSS-only `@platypus/theme` workspace. Each application compiles its own styles; there is no shared framework runtime or theme server.
 
-Shell uses the Tailwind PostCSS plugin and `sh:` utility classes. React and Vue use the Tailwind Vite plugin with `an:` and `ad:` classes. Each stylesheet scans only its own application source. Existing layout and cards now use these utilities; small custom selectors remain for icons, active navigation, and Shell fallback views.
+Shell and Support use the Tailwind PostCSS plugin with `sh:` and `su:` utility classes respectively. React and Vue use the Tailwind Vite plugin with `an:` and `ad:` classes. Each stylesheet scans only its own application source. Existing layout and cards now use these utilities; small custom selectors remain for icons, active navigation, and Shell fallback views.
 
 Only Shell includes **Preflight**, Tailwind's document-wide baseline reset. Remote styles omit it and retain their independent `style.css` artifacts. Standalone pages import `packages/theme/standalone.css` separately; that document baseline is absent from integrated remote bundles. Prefixes are a styling convention rather than complete isolation.
 
@@ -134,13 +139,21 @@ npm.cmd run test:independent-build
 
 The browser runner uses an installed Edge or Chrome executable in a new isolated headless session; it does not use an existing user profile or download a browser. For another Chromium location set `$env:PLATYPUS_BROWSER` to its executable path.
 
-To include both standalone pages, start their two development commands and run `npm.cmd run test:browser -- --standalone`.
+To include all three standalone pages, start their three development commands and run `npm.cmd run test:browser -- --standalone`.
 
-The independent-build check temporarily changes one Analytics sentence, rebuilds only Analytics, verifies that Shell displays it while the other build hashes remain unchanged, then restores and rebuilds the original Analytics source. Run it when no one else is editing or building Analytics.
+The independent-build check temporarily changes one Analytics sentence, rebuilds only Analytics, verifies that Shell displays it while the Shell, Administration, and Support build hashes remain unchanged, then restores and rebuilds the original Analytics source. Run `npm.cmd run test:independent-build -- --support` for the equivalent Support-only proof, preserving Shell/Analytics/Administration hashes. Run either check only when no one else is editing or building that application.
 
 Checks completed: reproducible `npm.cmd ci`, three builds and typechecks, hosting/contract tests, browser tests against development and built Shell, standalone pages, repeated navigation, history, direct links/refresh, loading cancellation, controlled failure recovery, mobile layout, remote-only rebuild, strict occupied-port behavior, and Ctrl+C port release. Details and limits: [implementation report](docs/implementation/003-frontend-foundation.md).
 
 npm 11 reported four dependency install scripts as not approved. The clean install and builds succeeded with their packaged binaries; no blanket script approval was added. Angular development reports that prebundling is unused because its cache is disabled in non-interactive mode. These messages were observed separately from application errors.
+
+## First Support slice
+
+Support currently reads `fixtures/tickets.json` from its own deployment origin. The fixture has 25 unique fictional requests, all four agreed statuses, seven columns, and unassigned examples. Dates are labelled and rendered in UTC. The semantic table scrolls inside its own region on narrow screens. There are no fake search, paging, sign-in or action controls.
+
+The component-scoped SignalStore owns loading, data, error and Retry; an injected asynchronous `TicketData` adapter fetches and validates the fixture with cancellation. A later Node.js-to-PostgreSQL adapter will replace this temporary source. The agreed 100,000-ticket dataset, server access checks/querying, and page sizes of 25/50/100 remain later requirements. No browser database connection is intended.
+
+Verification includes healthy rendering, actual fixture loading/error/empty/malformed results and recovery, delayed Angular startup, late-created application cleanup, repeated navigation and mobile layout. Fixtures are public local learning data and provide no access enforcement. See [Support implementation and evidence](docs/implementation/012-support-ticket-list.md).
 
 ## Local Git workflow
 

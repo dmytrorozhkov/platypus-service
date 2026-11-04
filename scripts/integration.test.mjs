@@ -14,7 +14,7 @@ import {
 const valid = () => ({
   schemaVersion: 1,
   remotes: Object.fromEntries(
-    ['analytics', 'administration'].map((name) => [
+    ['analytics', 'administration', 'support'].map((name) => [
       name,
       {
         contractVersion: 1,

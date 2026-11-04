@@ -37,12 +37,12 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['apps/shell/**/*.ts'],
+    files: ['apps/shell/**/*.ts', 'apps/support/**/*.ts'],
     extends: [angular.configs.tsRecommended],
     processor: angular.processInlineTemplates,
   },
   {
-    files: ['apps/shell/**/*.html'],
+    files: ['apps/shell/**/*.html', 'apps/support/**/*.html'],
     extends: [
       angular.configs.templateRecommended,
       angular.configs.templateAccessibility,

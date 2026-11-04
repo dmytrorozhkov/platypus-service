@@ -1,3 +1,4 @@
+import { checkSupport } from './support-browser-check.mjs';
 import assert from 'node:assert/strict';
 import { access, mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -143,6 +144,7 @@ try {
       'React and Vue standalone pages render headings and independent shared-theme card styles.',
     );
   }
+  await checkSupport({ browser, page, standalone, evidenceDirectory, passed });
   await page.goto('http://localhost:4200/');
   await heading('Analytics');
   assert.equal(new URL(page.url()).pathname, '/analytics');
@@ -168,6 +170,7 @@ try {
   for (const [port, name] of [
     [4301, 'analytics'],
     [4302, 'administration'],
+    [4303, 'support'],
   ]) {
     const entryUrl = 'http://localhost:' + port + '/remoteEntry.json';
     const entry = await (await context.request.get(entryUrl)).json();
