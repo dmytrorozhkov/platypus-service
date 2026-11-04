@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: parallel PostgreSQL planning tasks 016/017 complete and independently reviewed under 018. Local installation and persistence implementation await the next approved stage.
+Current phase: PostgreSQL planning complete. The user is evaluating an earlier AWS deployment instead of native database installation; no AWS account exists yet. Cloud resources and local installation remain unprovisioned.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -538,6 +538,30 @@ Evidence: docs/architecture/016-postgresql-data-design.md; docs/research/017-loc
 
 The next proposed step is selecting and approving local database setup, including required user/administrator interaction. Database installation, credential entry, migrations/seeds, Node integration, persistence tests, paid/cloud resources and remote publication were not authorized by the parallel planning request. Define the bounded implementation after the setup route is accepted.
 
+## 5.25. AWS-first deployment alternative — assessment, not provisioning approval
+
+The user asked whether to prepare AWS infrastructure now instead of installing PostgreSQL on the computer, and what blocks frontend/backend deployment. In response to clarification, the user confirmed there is no AWS account yet. The native Windows recommendation in 017 remains a proposal; no installer or database setup has begun.
+
+A reasonable proposed sequence is an early cloud demonstration of the existing frontend and Node server with the same 25 fictional examples, followed by managed PostgreSQL as a separately estimated persistence stage. Local PostgreSQL is not a prerequisite for that first demonstration. The schema/repository design in 016 remains reusable with cloud PostgreSQL; cloud networking, credentials and restart-test ownership require a new environment design.
+
+Current source inspection: all four frontends and the independent Node workspace already have verified build boundaries. Shell runtime-config.json and Support ticket-api-config.json still point to localhost. Node binds localhost and has local browser-origin defaults. Local launch scripts manage desktop processes, not cloud resources; AWS packaging/configuration, infrastructure definitions, deployment/rollback and cloud verification have not been prepared.
+
+Candidates for review, not selected services: private S3 object storage and CloudFront delivery for independently published frontend artifacts; an AWS Node hosting option, including Lambda Web Functions, whose current documentation describes running HTTP servers directly; RDS for PostgreSQL for the later database stage. Before selection, verify target-region availability, compatibility, account-plan access and the complete cost profile. Do not assume every Lambda mode needs an event-handler rewrite or that every Free plan allows every advertised service/plan.
+
+Frontend work includes cloud-controlled asset/API addresses, separate application paths, correct direct-route handling without turning missing federation assets into HTML, metadata/configuration cache policy and independent update/rollback checks. Backend work includes a deployment package/startup suited to the chosen host, public HTTPS request routing, origin configuration, logging, bounded resource settings and deployment checks. Managed database work includes provisioning/access rules, server-only credentials, migrations/seed, repository integration and real persistence/recovery checks. The first public demo uses fictional data; application authentication remains a later agreed capability.
+
+Prepare a minimal architecture and cost/shutdown estimate before account/service setup. Infrastructure should be described in code for reproducible review/deployment. Automated delivery can be added gradually; a remote Git repository or automated pipeline is not a prerequisite for a controlled first deployment.
+
+Official sources checked November 4, 2026:
+
+- https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/deploy-a-react-based-single-page-application-to-amazon-s3-and-cloudfront.html
+- https://docs.aws.amazon.com/lambda/latest/dg/web-functions.html
+- https://aws.amazon.com/free/free-tier-faqs/
+- https://aws.amazon.com/rds/postgresql/pricing/
+- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_StopInstance.html
+
+The current new-customer offer describes up to USD 200 credits and up to six months on the Free plan, with eligibility, credit and service-access conditions. It is not a permanent zero-cost architecture guarantee. RDS charges include compute/storage; stopping an instance retains storage/backup charges and it can restart automatically after seven days. Check the actual new-account experience and selected services before any chargeable action. No account, cloud resource, spending authorization or final hosting choice resulted from this assessment.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.
@@ -595,7 +619,7 @@ The user confirmed the Native Federation application works. Before checkpoint 01
 1. Completed checkpoint 010: local main repository, verified ignore/LF policies, independent review 011, and initial commit 6d07da7 containing 78 authored files. Post-commit checks confirmed a clean worktree and no remotes. Assignment: docs/agent-tasks/010-git-baseline.md; evidence: docs/implementation/010-git-baseline.md; review: docs/reviews/011-git-baseline-review.md. Completion documentation is recorded in a separate follow-up commit so no pre-commit claim substitutes for verification.
 2. Task 012 is implemented and locally verified: independent Angular Support, Tickets navigation, 25 temporary fictional records, shared styling, SignalStore state, loading/empty/error/retry, and cancellation cleanup. Independent review 013 found no remaining confirmed blocker, commit 9163b2d saved the reviewed stage, and the user confirmed the visible table works. Server querying, authorization, PostgreSQL persistence, and full heavy-table behavior remain later agreed work.
 3. Task 014 is implemented and locally verified: an independent local Node.js server supplies GET /api/health and GET /api/tickets with the same 25 examples in an items/total response. Support loads through its configurable adapter and retains loading/error/Retry/cancellation behavior. Independent review 015 found no remaining confirmed blocker; commit 5532511 saved the reviewed stage and the user confirmed the server response. See section 5.23 and docs/implementation/014-local-ticket-server.md. PostgreSQL persistence follows as a separate stage.
-4. Completed parallel planning 016/017 and independent proposal review 018; see section 5.24. The recommended next route is native local PostgreSQL with a three-business-table model, explicit migration/seed commands and replacement of the existing repository. User selection/approval of local setup precedes installation; define the bounded persistence implementation afterward. Later stages add identity/access, large tables, analytics, RAG and AI quality checks.
+4. Completed PostgreSQL planning 016/017 and review 018; see section 5.24. The user subsequently asked to evaluate AWS-first deployment and confirmed there is no AWS account. See section 5.25: propose a minimal architecture/cost plan and an early cloud demonstration with the existing 25 examples before a separately estimated managed PostgreSQL stage. The native local setup remains an alternative; neither route has been provisioned. Later stages add identity/access, large tables, analytics, RAG and AI quality checks.
 5. Agree on costs before paid connections, then deploy to AWS.
 
 Refine this plan throughout the course. Architectural assumptions and prepared plans must not be recorded as completed implementation.
