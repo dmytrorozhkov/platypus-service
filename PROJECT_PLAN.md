@@ -2,7 +2,7 @@
 
 Updated: November 4, 2026.
 Project directory: D:/Projects/Pet-projects/aws.
-Current phase: AWS architecture/cost proposals 019/020 and review 021 are complete. The user has created the Platypus Service AWS project on Free plan in Stockholm and verified CLI sign-in; Agent Toolkit setup is pending. The current application and plans are published to GitHub. Application deployment and cloud resource provisioning remain future work.
+Current phase: AWS architecture/cost proposals 019/020 and review 021 are complete. The Platypus Service AWS project uses Free plan in Stockholm; CLI sign-in, 25 installed AWS skills and authenticated agent access through the manually configured AWS MCP connection are verified. The current application and plans are published to GitHub. Application deployment and cloud resource provisioning remain future work.
 
 This file is the primary source of agreed decisions. Proposals and open questions are not approved requirements. Mark work as completed only after verification.
 
@@ -596,6 +596,16 @@ The next proposed access step is the interactive Agent Toolkit setup. No success
 The user created https://github.com/dmytrorozhkov/platypus-service.git. The coordinator configured origin; the user subsequently published the current branch. A live read-only Git check confirmed HEAD and the only remote branch planning/aws-first-deployment at commit 55319fe. Local main remains the earlier foundation checkpoint. GitHub visibility was not independently established. Later branch organization must preserve these histories; no force push or history rewrite is needed.
 
 The user requested an updated README after publication. It now describes the product goal, implemented local slice, future features, current AWS preparation, GitHub workflow and links to recent evidence. Existing local launch and verification commands are retained. Historical research reports describe their dated evidence; current account/readiness status is recorded in this section. Application code, infrastructure resources and Agent Toolkit configuration were not changed by the documentation refresh.
+
+## 5.28. AWS agent connection — authenticated MCP call verified
+
+After the GitHub/README step, the user resumed Agent Toolkit setup. Screenshots showed all 25 default AWS skills installed to the user-level .agents/skills directory. The wizard initially lacked the codex executable on its search path. The user installed Codex CLI with npm and verified version 0.166.0 using codex.cmd. A repeat wizard attempt failed with WinError 2 during MCP configuration; its exact missing file/root cause was not established, so no particular Windows packaging defect is claimed.
+
+The user demonstrated that the existing MCP list contained no aws-mcp entry. Guided manual registration then succeeded with codex.cmd mcp add: launch uvx with mcp-proxy-for-aws-cli@latest, use the managed endpoint https://aws-mcp.us-east-1.api.aws/mcp, pass AWS_MCP_PROXY_PROFILES=platypus-dev and metadata AWS_REGION=eu-north-1. These values select the existing profile and the default operation Region; the endpoint Region does not relocate the project. Existing unrelated connections were preserved.
+
+After the user restarted the client, AWS MCP tools became available to the coordinator. A single run_script call invoked STS GetCallerIdentity with explicit Region eu-north-1. The tool returned status success, an api_calls entry identifying sts/GetCallerIdentity as successful, and the same project identity/AccountFullAccessRole shown in the earlier terminal check. No credentials or personal account identifiers are stored here. This directly verifies authenticated agent access; a configured/enabled entry alone would not have proved it. Regional provisioning permissions, resource quotas, frontend/backend deployment and actual billing behavior remain untested.
+
+The coordinator read the installed signing-in-to-aws and aws-sdk-python-usage skills, used the official MCP tool for the identity call, and read AWS's new-experience rules. Relevant project guidance is recorded in AGENTS.md with existing project decisions taking precedence. README and the current phase now reflect the verified connection. No application code, dependency, infrastructure resource or credential was changed by this verification/documentation step. Next proposed work is a bounded, reviewable first-deployment preparation stage; creation of resources and paid usage remain separately approved actions.
 
 ## 6. Costs — agreed approach
 

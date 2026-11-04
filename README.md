@@ -32,7 +32,7 @@ These are agreed targets, not a list of implemented features. Detailed requireme
 
 ## Current AWS preparation
 
-As of November 4, 2026, the learner has created the **Platypus Service** AWS project on the **Free plan** in **Europe (Stockholm), `eu-north-1`**. AWS CLI **2.39.3**, browser-based sign-in and the local `platypus-dev` profile were verified in the learner's terminal. The required `uv` tool is installed; **Agent Toolkit setup is still pending**. Successful identity lookup establishes sign-in, not every permission needed for deployment.
+As of November 4, 2026, the learner has created the **Platypus Service** AWS project on the **Free plan** in **Europe (Stockholm), `eu-north-1`**. AWS CLI **2.39.3**, browser-based sign-in and the local `platypus-dev` profile were verified in the learner's terminal. The user installed **25 AWS skills**, `uv` **0.13.7** and Codex CLI **0.166.0**. The AWS wizard could not finish MCP configuration on Windows; a manual `codex.cmd mcp add` registered `aws-mcp` with profile `platypus-dev` and default operation Region `eu-north-1`. After a client restart, the coordinator successfully called **STS GetCallerIdentity through MCP**, matching the project identity previously checked in the terminal. This verifies authenticated agent access, not every permission needed for deployment.
 
 The reviewed first-deployment proposal uses private S3 storage, CloudFront delivery and a Lambda Event Function serving the existing 25 examples. PostgreSQL follows as a separately estimated stage. Infrastructure code, cloud configuration, deployment and rollback verification are still to be implemented. Free-plan credits and allowances have conditions and expiry; deployment or spending requires a separately agreed step.
 
