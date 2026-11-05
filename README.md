@@ -181,7 +181,7 @@ Stage 031 adds .github/workflows/ci.yml for checks and builds, without AWS acces
 
 The job performs a clean npm install, lint/format/type checks, all five workspace builds, server/integration/startup tests, local infrastructure validation and the complete offline AWS-packaging test suite. Its temporary local browser/handler checks do not contact the deployed application or require an AWS account. No build artifact storage or deployment permission is configured. Automatic frontend/backend publication is a later stage.
 
-The [first real hosted run](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42072669079) passed on November 5, 2026 for commit 28d5c39cf3c7aa5fc9f4550fd6dd8af173358556. Its clean tool/dependency install, all checks/builds/tests and cleanup completed successfully in the GitHub runner; this is not a local-only result. This work lives on feature/github-ci; the repository's existing default branch remains planning/aws-first-deployment. A push to the new branch starts its workflow. The manual workflow_dispatch button requires the workflow file on the default branch; do not mistake that limitation for a failed push trigger. No default-branch or branch-protection setting was changed.
+The [first real hosted run](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42072669079) passed on November 5, 2026 for commit 28d5c39cf3c7aa5fc9f4550fd6dd8af173358556. Its clean tool/dependency install, all checks/builds/tests and cleanup completed successfully in the GitHub runner; this is not a local-only result. The reviewed history now lives on main, the GitHub default branch after the learner-approved promotion on November 5, 2026. Existing branches and commits were preserved. Pushes and pull requests run CI; manual workflow_dispatch is also available because the workflow is now on the default branch. This starts checks/builds, not AWS publication. See [main promotion](docs/implementation/037-main-branch.md); the planned Deploy workflow remains a separate implementation stage.
 
 Implementation and limits: [report 031](docs/implementation/031-github-ci.md); independent review: [report 032](docs/reviews/032-github-ci-review.md). Inspect actual executions in the repository's [Actions tab](https://github.com/dmytrorozhkov/platypus-service/actions).
 
@@ -244,7 +244,7 @@ Checks include real server responses, controlled empty/internal failures, explic
 
 The repository is hosted at [dmytrorozhkov/platypus-service](https://github.com/dmytrorozhkov/platypus-service). The local remote `origin` points to that repository. Feature and planning work use separate branches; check the active one with `git branch --show-current`. A commit saves an intentional checkpoint locally; `git push` sends commits to GitHub. Synchronization is manual.
 
-As of November 4, 2026, the published default branch is `planning/aws-first-deployment`. It contains the current application and reviewed plans; local `main` retains the earlier foundation checkpoint. Branch names do not indicate completed cloud deployment.
+As of November 5, 2026, `main` is the published default branch and contains the reviewed application, CI and delivery-planning history. Local `main` tracks `origin/main`, and `origin/HEAD` points to it. Earlier feature/planning branches remain available. Git publication does not itself update the running AWS application; the manual Deploy workflow is planned separately.
 
 ```powershell
 git status

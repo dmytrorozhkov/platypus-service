@@ -711,6 +711,12 @@ The proposal recommends main as the future canonical/default branch, a manual fu
 
 Next implementation can use three isolated lanes: reusable checks/package/manual workflow; durable-state/publication executor; and independent failure/acceptance checks. Root owns shared interfaces, branch integration and any separately agreed initial access/state setup; an independent final review follows the authors. No runtime/cloud/settings changes occurred in this planning stage. Branch/default selection and the concrete implementation stage remain learner decisions; database/authentication and Sonar are unchanged.
 
+## 5.39. Canonical main branch — authorized promotion verified
+
+The learner explicitly approved the next small step: promote the reviewed project history to main and make it the GitHub default. Root refreshed origin, confirmed clean status and ancestry, fast-forwarded main from 62acadd to reviewed planning commit 1ae1665, published it, and changed only default_branch through the existing authenticated GitHub connection. A separate readback confirmed main and public visibility; origin/HEAD now points to origin/main. No commit was rewritten or branch deleted. See implementation 037 and independent review 038: no remaining blocker after correcting outdated README branch guidance. Repository-wide lint/format checks and whitespace checks passed.
+
+This completes the canonical-branch prerequisite for later manual delivery planning. Existing CI is now on the default branch. Actual main push run https://github.com/dmytrorozhkov/platypus-service/actions/runs/42103045381 completed successfully at exact promoted commit 1ae1665, with all recorded job steps successful; ignored raw evidence is .local/ci/main-promotion-1ae1665.json. Later documentation pushes may start separate CI runs whose outcomes are not inferred here. The Deploy workflow, AWS identity roles, private durable state, publication executor and recovery proof remain unimplemented proposals033–035. This approval covers the repository branch step only; no environment/IAM/cloud/deployment or paid-service change occurred.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.
@@ -765,11 +771,11 @@ The 100,000-ticket dataset is agreed in section 5.8. Light/dark themes are not y
 
 Status as of November 5, 2026. Earlier sections and stage reports preserve the historical decisions and evidence; this section describes the current position.
 
-Implemented: Angular Shell/Support, React Analytics and Vue Administration integrated through Native Federation; a shared Tailwind theme; the read-only 25-ticket Support flow; a Node.js backend with local and Lambda adapters; public AWS deployment on private S3/CloudFront/Lambda; lint/format/type/build/server/integration/startup/offline-package browser checks; and a real successful GitHub Actions CI workflow in feature/github-ci. Coding agents already implement bounded tasks and independently review results. The product's AI assistant and runtime RAG workflows do not yet exist.
+Implemented: Angular Shell/Support, React Analytics and Vue Administration integrated through Native Federation; a shared Tailwind theme; the read-only 25-ticket Support flow; a Node.js backend with local and Lambda adapters; public AWS deployment on private S3/CloudFront/Lambda; lint/format/type/build/server/integration/startup/offline-package browser checks; and a real successful GitHub Actions CI workflow, now included in canonical main. Coding agents already implement bounded tasks and independently review results. The product's AI assistant and runtime RAG workflows do not yet exist.
 
 The following sequence is proposed for separately agreed stages:
 
-1. Establish the current reviewed code/CI on the agreed canonical repository branch. The existing default is still planning/aws-first-deployment; current implemented work is on feature/github-ci. Do not merge or change the default branch merely from this status discussion.
+1. Completed in stage037: main contains the reviewed application, CI and planning history and is the GitHub default. Preserve the other branches and existing history; no force push or branch cleanup is needed.
 2. Add reviewed GitHub-to-AWS delivery, initially started by an explicit Deploy button, with temporary scoped AWS access and post-publication checks. CI-only completion did not authorize this integration.
 3. Select and estimate PostgreSQL hosting, then connect the backend repository to persistent data. First preserve the existing read-only ticket contract and verify that data survives service restarts, instead of adding unauthenticated public write operations. Reuse schema/repository planning 016–018 with a newly reviewed cloud environment design.
 4. Add Cognito sign-in and server-enforced profile/role/organization/ownership checks, then ticket creation/editing, assignments, history and support conversations within those access boundaries.
