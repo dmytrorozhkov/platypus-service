@@ -34,7 +34,9 @@
     "aws:plan": "node scripts/aws/plan.mjs",
     "aws:preview": "node scripts/aws/preview.mjs",
     "aws:validate": "node scripts/validate-aws.mjs",
-    "test:aws": "node --test scripts/aws/*.test.mjs"
+    "test:aws": "node --test scripts/aws/*.test.mjs",
+    "test:delivery": "node --test scripts/delivery/*.test.mjs",
+    "aws:delivery": "node scripts/delivery/cli.mjs"
   },
   "devDependencies": {
     "@aws/cloudformation-validate": "1.15.0",

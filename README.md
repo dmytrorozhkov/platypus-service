@@ -179,7 +179,7 @@ Implementation details and verification: [code quality report](docs/implementati
 
 Stage 031 adds .github/workflows/ci.yml for checks and builds, without AWS access or publication. It runs on pushes and pull requests in branches containing the workflow. It uses a standard Windows 2025 hosted runner, matching the existing PowerShell ZIP preparation and installed-Edge browser checks, with pinned Node 24.21.0/npm 11.19.0 and official action revisions.
 
-The job performs a clean npm install, lint/format/type checks, all five workspace builds, server/integration/startup tests, local infrastructure validation and the complete offline AWS-packaging test suite. Its temporary local browser/handler checks do not contact the deployed application or require an AWS account. No build artifact storage or deployment permission is configured. Automatic frontend/backend publication is a later stage.
+The job performs a clean npm install, lint/format/type checks, all five workspace builds, server/integration/startup tests, local infrastructure validation and the complete offline AWS-packaging test suite. Its temporary local browser/handler checks do not contact the deployed application or require an AWS account. Ordinary CI retains no build artifact and obtains no AWS identity. The separate manual Deploy preparation below adds a bounded artifact handoff only when explicitly requested; live publisher setup remains disabled.
 
 The [first real hosted run](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42072669079) passed on November 5, 2026 for commit 28d5c39cf3c7aa5fc9f4550fd6dd8af173358556. Its clean tool/dependency install, all checks/builds/tests and cleanup completed successfully in the GitHub runner; this is not a local-only result. The reviewed history now lives on main, the GitHub default branch after the learner-approved promotion on November 5, 2026. Existing branches and commits were preserved. Pushes and pull requests run CI; manual workflow_dispatch is also available because the workflow is now on the default branch. This starts checks/builds, not AWS publication. See [main promotion](docs/implementation/037-main-branch.md); the planned Deploy workflow remains a separate implementation stage.
 
@@ -239,6 +239,20 @@ Integrated start/preview owns its API child and all frontend listeners. An occup
 The repository interface (`apps/server/src/ticket-repository.ts`) is the later PostgreSQL replacement boundary. This stage is read-only, unfiltered and unpaged; `total` equals the returned collection length. The agreed 100,000-record dataset, server-side access/querying and page sizes of 25/50/100 remain later work.
 
 Checks include real server responses, controlled empty/internal failures, explicit origins, unavailable/restarted real API recovery in Edge, cancellation, malformed responses, all three Support hosting modes, and existing federation/theme regressions. See [local server implementation and evidence](docs/implementation/014-local-ticket-server.md).
+
+## Manual AWS delivery — prepared, disabled
+
+Stage039–043 adds a reusable CI interface, a manual main-only Deploy workflow, exact-source full bundles, private durable-state/import/recovery tooling and prepared scoped access documents. The existing checks/build job also runs npm.cmd run test:delivery. No AWS publisher credentials are present in the repository.
+
+The workflow stays disabled until its protected aws-learning environment is deliberately configured and DELIVERY_ENABLED is true. A missing setup stops before AWS authentication. Actual role setup, durable baseline import, hosted artifact handoff and live publication/recovery have not been demonstrated. The AWS connector currently rejects read-only calls with Unknown tool; resolve the connection before attempting live setup.
+
+Run the offline failure tests from the repository root:
+
+```powershell
+npm.cmd run test:delivery
+```
+
+Preparation and operating instructions: [workflow/bundle039](docs/implementation/039-delivery-workflow.md), [executor040](docs/implementation/040-delivery-executor.md), [failure tests041](docs/implementation/041-delivery-verification.md), [access/setup043](docs/implementation/043-delivery-access.md) and [independent review042](docs/reviews/042-delivery-review.md). Public Git publication and CI do not themselves change the running AWS application.
 
 ## Git and GitHub workflow
 

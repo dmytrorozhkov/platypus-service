@@ -1,0 +1,43 @@
+# Implementation 043 — Prepared deployment access
+
+Date: November 5, 2026. Status: local preparation; live setup not performed.
+
+## Prepared code and constraints
+
+- scripts/delivery/access.mjs exports buildAccessDocuments({target, github, lambdaExecutionRoleArn}). It creates provider metadata, publisher trust/permissions and CloudFormation service trust/permissions as data only; it has no AWS transport or automatic upload.
+- infrastructure/delivery-target.example.json deliberately contains placeholders and ownershipVerified false. Copy into ignored local configuration and replace only after fresh ownership/identity observations; do not enable a workflow with the example.
+- GitHub identity is fixed to dmytrorozhkov/platypus-service, refs/heads/main and aws-learning. Verified numeric owner/repository IDs construct the post-July-2026 immutable environment subject. Exact audience, subject, repository ID, owner ID, ref and environment claims are all required. No long-lived AWS key is used.
+- The publisher's maximum requested session is 1,800 seconds. The protected environment needs a human reviewer (self-review remains possible for the sole learner) and selected-main-only deployment rules. Only publisher gets id-token:write; CI/package jobs remain read-only.
+- DELIVERY_ENABLED must remain absent/false until setup, baseline import and bounded role verification succeed; a missing or invalid setup fails before obtaining AWS credentials.
+
+## Operation and permission scope
+
+Policy mapping uses the explicit reviewed CLI/API operation list, not SDK analysis of application source. The runtime application has no SDK calls; no Terraform plan is involved. Root queried each operation against AWS's public programmatic Service Authorization Reference and recorded local evidence in the coordinator staging workspace.
+
+- Object Get/Put uses one owned bucket and reviewed frontend/ZIP/private-release paths. Immutable writes require If-None-Match '*'; replacement requires If-Match and is limited to index, runtime pointer, favicon and the delivery current checkpoint. No object deletion or bucket administration. ListBucket covers metadata in this one bucket so an authorized missing GetObject yields an unambiguous missing-object result; it grants no account-wide bucket listing.
+- Stack reads use the exact three owned stack ARNs. Create/Describe/ExecuteChangeSet permissions use the existing backend stack ARN, not a change-set ARN as the resource; change-set names are delivery-* and create requires the exact CloudFormation role. TagResource/UntagResource cover the documented change-set prerequisites on this same stack. The executor additionally rejects tag/resource/topology/permission diffs and compares the exact previous templates.
+- Publisher PassRole covers only the reviewed CloudFormation role and cloudformation.amazonaws.com. No CreateStack, UpdateStack, DeleteStack, IAM administration, direct Lambda mutation, quota change, distribution update or account upgrade.
+- Lambda observation is limited to the owned function/qualified versions and exact distribution. Account preflight reads GetAccountSettings, GetAccountPlanState and the documented ListStacks prerequisite are the only non-resource-scoped actions. GetCallerIdentity needs no explicit allow.
+- The CloudFormation service role can read the existing backend ZIP prefix, observe the owned function/existing execution role, update code/configuration, publish a version and update only the existing live alias. PassRole is limited to that existing Lambda execution role and lambda.amazonaws.com. No IAM policy mutation, new function, deletion, URL permission or networking change. Existing templates and preflight prevent new layer/capacity/VPC features; their feature-dependent permissions are not granted.
+- Standard CloudFormation service trust follows its documented cloudformation.amazonaws.com principal. Do not copy CloudFormation extension/StackSets SourceArn conditions into ordinary stack-role trust without evidence that this path supplies those keys. Caller stack restrictions, exact PassRole and the role's resource ceiling jointly constrain it.
+
+## Concrete setup sequence after connection is restored
+
+1. Through the AWS connector, refresh identity, FREE/ACTIVE credits/expiry, cap-ten, stack resources/templates/outputs, actual Lambda execution role and provider/role inventory. Reconcile these against the private existing target. Public GitHub metadata supplies numeric repository/owner IDs; inspect actual subject configuration before applying trust.
+2. Generate and independently review the complete access documents for that exact inventory. Create/reuse the GitHub provider and two purpose-specific roles as operator setup; verify resulting policies. Do not install broad managed access to bypass a denial.
+3. Explain and agree the persistent service-role association before changing the existing backend stack. Once associated, CloudFormation keeps using the role; it cannot simply be removed. Other actors permitted to operate that stack may use it, so stack permissions and the role ceiling matter together. Preserve template/parameters/resources while associating it; verify the actual RoleARN afterward.
+4. Use the explicit executor import command against the accepted full baseline with expected alias version2. Validate all live bytes/metadata/controls/alias/configuration and the live checker before completing private durable state. Source provenance stays manual-import/null; never assign current HEAD to manually deployed bytes.
+5. Configure aws-learning reviewer/main-only rules; repository variable DELIVERY_ORIGIN; environment variables AWS_PUBLISHER_ROLE_ARN and AWS_ACCOUNT_ID; private environment secret DELIVERY_TARGET_JSON. Test bounded read-only role assumption and reject wrong claims through policy validation/simulation, never destructive probes. Enable DELIVERY_ENABLED only after all gates pass.
+6. Review and run the main-only Deploy workflow for a controlled full release; prove live acceptance and explicit compatible recovery. No such workflow execution or cloud proof is inferred from local tests.
+
+## Checks and current external blocker
+
+Five local access test groups pass: exact/missing/wrong trust claims, no publisher deletion/IAM/direct-function mutation, narrow CloudFormation rights, conditional object writes, and rejected cross-account/widened configuration. This is policy-document testing, not AWS IAM simulation or live authorization proof. Integrated review042 follows.
+
+The existing AWS connector returned Unknown tool: aws___run_script on two read-only attempts, including GetCallerIdentity. No AWS API was recorded as executed. This is a connector/tool availability error, not evidence of expired credentials or an AWS service denial. No provider, role, association, import, GitHub environment/secret or live publication was performed. Do not run the AWS CLI through a shell as a workaround for the connector restriction. Continue local verification; reconnect the AWS tool before live setup.
+
+## Cost boundary
+
+Use the existing AWS bucket/function/distribution and standard public-repository Windows runners. The bundle enforces 32 MiB and one-day artifact retention. Ten maximum-sized retained artifacts for one day each are about 10.7 MiB-month over a 30-day billing month, below the current 500 MB GitHub Free pooled artifact allowance when otherwise unused. Other account usage still shares that allowance. Private S3 records/requests retain current and all preceding graphs until separately reviewed cleanup. At the 32 MiB bundle limit, ten releases can add up to roughly 0.625 GiB across private recovery copies and public/package objects, plus receipts. This grows with further releases and adds usage under existing AWS plan/credits; no new paid service or permanent zero-bill promise is made.
+
+Sources: [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [AWS condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_iam-condition-keys.html), [CloudFormation service role](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-iam-servicerole.html), [CloudFormation role trust](https://docs.aws.amazon.com/prescriptive-guidance/latest/least-privilege-cloudformation/service-roles-for-cloudformation.html).

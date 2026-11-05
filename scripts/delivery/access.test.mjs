@@ -1,0 +1,182 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { buildAccessDocuments } from './access.mjs';
+
+function config() {
+  return {
+    target: {
+      project: 'platypus-service',
+      region: 'eu-north-1',
+      accountId: '123456789012',
+      serviceRoleArn: 'arn:aws:iam::123456789012:role/platypus-cfn',
+      stacks: Object.fromEntries(
+        ['storage', 'backend', 'edge'].map((name) => [
+          name,
+          `arn:aws:cloudformation:eu-north-1:123456789012:stack/platypus-${name}/1234-abcd`,
+        ]),
+      ),
+      resources: {
+        bucket: 'fictional-platypus-bucket',
+        functionArn:
+          'arn:aws:lambda:eu-north-1:123456789012:function:fixture-api',
+        aliasArn:
+          'arn:aws:lambda:eu-north-1:123456789012:function:fixture-api:live',
+        distributionId: 'EXAMPLE',
+      },
+    },
+    github: {
+      repository: 'dmytrorozhkov/platypus-service',
+      repositoryId: '456',
+      ownerId: '123',
+      ref: 'refs/heads/main',
+      environment: 'aws-learning',
+    },
+    lambdaExecutionRoleArn: 'arn:aws:iam::123456789012:role/existing-lambda',
+  };
+}
+
+test('trust excludes alternate repositories, refs, audiences and absent environment claims', () => {
+  const trust = buildAccessDocuments(config()).publisherTrust.Statement[0];
+  assert.equal(trust.Action, 'sts:AssumeRoleWithWebIdentity');
+  const expected = trust.Condition.StringEquals;
+  assert.equal(
+    expected['token.actions.githubusercontent.com:sub'],
+    'repo:dmytrorozhkov@123/platypus-service@456:environment:aws-learning',
+  );
+  const accepts = (claims) =>
+    Object.entries(expected).every(([name, value]) => claims[name] === value);
+  assert.equal(accepts(expected), true);
+  for (const name of Object.keys(expected)) {
+    assert.equal(accepts({ ...expected, [name]: 'untrusted' }), false);
+    const missing = { ...expected };
+    delete missing[name];
+    assert.equal(accepts(missing), false);
+  }
+});
+
+test('routine publisher cannot delete resources, mutate IAM or directly publish backend code', () => {
+  const documents = buildAccessDocuments(config());
+  const statements = documents.publisherPermissions.Statement;
+  const actions = statements.flatMap((statement) => statement.Action);
+  for (const action of [
+    's3:DeleteObject',
+    'cloudformation:DeleteStack',
+    'cloudformation:CreateStack',
+    'cloudformation:UpdateStack',
+    'iam:CreateRole',
+    'iam:PutRolePolicy',
+    'lambda:UpdateAlias',
+    'lambda:UpdateFunctionCode',
+  ])
+    assert.equal(actions.includes(action), false);
+  for (const statement of statements) {
+    assert.ok(statement.Action.every((action) => !action.includes('*')));
+    if (statement.Resource === '*')
+      assert.equal(statement.Sid, 'ReadAccountPreflight');
+  }
+  const pass = statements.find(
+    (statement) => statement.Sid === 'PassOnlyBackendServiceRole',
+  );
+  assert.equal(pass.Resource, config().target.serviceRoleArn);
+  assert.equal(
+    pass.Condition.StringEquals['iam:PassedToService'],
+    'cloudformation.amazonaws.com',
+  );
+  const changes = statements.find(
+    (statement) => statement.Sid === 'CreateBackendChangeSet',
+  );
+  assert.equal(changes.Resource, config().target.stacks.backend);
+  assert.equal(
+    changes.Condition.StringLike['cloudformation:ChangeSetName'],
+    'delivery-*',
+  );
+  assert.equal(
+    changes.Condition.StringEquals['cloudformation:RoleArn'],
+    config().target.serviceRoleArn,
+  );
+});
+
+test('CloudFormation role has no role, topology, deletion or invocation authority', () => {
+  const documents = buildAccessDocuments(config());
+  const actions = documents.servicePermissions.Statement.flatMap(
+    (statement) => statement.Action,
+  );
+  assert.ok(
+    !actions.some((action) =>
+      /(?:Delete|Create|Invoke|PutRole|Attach|AddPermission)/.test(action),
+    ),
+  );
+  assert.ok(
+    documents.servicePermissions.Statement.every(
+      (statement) => statement.Resource !== '*',
+    ),
+  );
+  assert.equal(
+    documents.serviceTrust.Statement[0].Principal.Service,
+    'cloudformation.amazonaws.com',
+  );
+  const alias = documents.servicePermissions.Statement.find(
+    (statement) => statement.Sid === 'ManageOnlyLiveAlias',
+  );
+  assert.equal(alias.Resource, config().target.resources.aliasArn);
+});
+
+test('S3 writes require absence or observed ETag and cannot replace an immutable graph', () => {
+  const statements = buildAccessDocuments(
+    config(),
+  ).publisherPermissions.Statement.filter((statement) =>
+    statement.Action.includes('s3:PutObject'),
+  );
+  assert.equal(statements.length, 2);
+  const create = statements.find(
+    (statement) => statement.Sid === 'CreateOnlyAbsentReleaseBytes',
+  );
+  assert.equal(create.Condition.StringEquals['s3:if-none-match'], '*');
+  const replace = statements.find(
+    (statement) => statement.Sid === 'ConditionallyReplaceControls',
+  );
+  assert.equal(replace.Condition.Null['s3:if-match'], 'false');
+  assert.deepEqual(
+    replace.Resource.map(
+      (value) => value.split('fictional-platypus-bucket/')[1],
+    ),
+    [
+      'index.html',
+      'runtime-config.json',
+      'favicon.svg',
+      '_releases/delivery/current.json',
+    ],
+  );
+  assert.ok(replace.Resource.every((value) => !value.includes('*')));
+});
+
+test('invalid cross-account target and widened trust configuration are rejected', () => {
+  for (const mutate of [
+    (value) => {
+      value.target.serviceRoleArn = 'arn:aws:iam::999999999999:role/other';
+    },
+    (value) => {
+      value.target.resources.functionArn += ':other';
+    },
+    (value) => {
+      value.target.stacks.backend =
+        'arn:aws:cloudformation:us-east-1:123456789012:stack/other/1234';
+    },
+    (value) => {
+      value.github.repository = 'attacker/fork';
+    },
+    (value) => {
+      value.github.ref = 'refs/heads/feature';
+    },
+    (value) => {
+      value.github.environment = '*';
+    },
+    (value) => {
+      value.github.ownerId = '*';
+    },
+  ]) {
+    const value = config();
+    mutate(value);
+    assert.throws(() => buildAccessDocuments(value));
+  }
+});

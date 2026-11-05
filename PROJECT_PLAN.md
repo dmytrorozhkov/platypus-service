@@ -717,6 +717,14 @@ The learner explicitly approved the next small step: promote the reviewed projec
 
 This completes the canonical-branch prerequisite for later manual delivery planning. Existing CI is now on the default branch. Actual main push run https://github.com/dmytrorozhkov/platypus-service/actions/runs/42103045381 completed successfully at exact promoted commit 1ae1665, with all recorded job steps successful; ignored raw evidence is .local/ci/main-promotion-1ae1665.json. Later documentation pushes may start separate CI runs whose outcomes are not inferred here. The Deploy workflow, AWS identity roles, private durable state, publication executor and recovery proof remain unimplemented proposals033–035. This approval covers the repository branch step only; no environment/IAM/cloud/deployment or paid-service change occurred.
 
+## 5.40. Manual GitHub delivery — implementation authorized
+
+After completed canonical-main promotion037/038, the learner accepted starting manual Deploy implementation. Root creates feature/github-delivery and three isolated lanes039–041: reusable workflow/bundle, state/publication executor, and independent failure tests. Root owns access preparation043/shared interfaces/Git; independent integrated review042 follows authors. Read contract039 and proposals033–035. Prepare and verify concrete code/configuration before live identity/state setup or publication. No paid service, teardown, quota/upgrade, Sonar or database work is included. Persistent CloudFormation service-role association requires the concrete explained setup decision; the earlier planning review is not evidence that live setup occurred.
+
+Local implementation039–043 is integrated and independent review042 found no remaining confirmed local blocker after crash/retry corrections. The coordinator ran repository-wide lint, format:check and 34 delivery test groups successfully (five real-bundle groups, 24 deterministic state/failure groups and five access-document groups). Existing app/templates/dependencies were preserved; the root adds only the delivery commands. Feature-branch hosted CI remains pending the reviewed push.
+
+The preparation includes a reusable checked-SHA build, one-day bounded artifact handoff, disabled manual main-only publisher/recovery, conditional private checkpoints/full records/receipts, typed import/recovery/reconcile and scoped access-document preparation. Two read-only AWS connector attempts returned Unknown tool: aws___run_script with no recorded API execution. Fresh inventory, roles/provider/service-role association, protected environment/secret setup, baseline import and hosted/live publication/recovery therefore remain unperformed. Keep DELIVERY_ENABLED absent/false. This is a concrete prepared implementation awaiting tool reconnection, not completed cloud delivery or an expired-session diagnosis. See reports039–043 and preserve the accepted running AWS release.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.
@@ -776,7 +784,7 @@ Implemented: Angular Shell/Support, React Analytics and Vue Administration integ
 The following sequence is proposed for separately agreed stages:
 
 1. Completed in stage037: main contains the reviewed application, CI and planning history and is the GitHub default. Preserve the other branches and existing history; no force push or branch cleanup is needed.
-2. Add reviewed GitHub-to-AWS delivery, initially started by an explicit Deploy button, with temporary scoped AWS access and post-publication checks. CI-only completion did not authorize this integration.
+2. In progress in039–043: manual GitHub-to-AWS delivery is locally implemented and independently reviewed, with 34 local test groups passing. Reconnect the unavailable AWS tool, refresh inventory and agree the concrete persistent service-role setup, import durable state and verify controlled hosted publication/recovery before enabling DELIVERY_ENABLED. No live setup/publication has occurred in this stage.
 3. Select and estimate PostgreSQL hosting, then connect the backend repository to persistent data. First preserve the existing read-only ticket contract and verify that data survives service restarts, instead of adding unauthenticated public write operations. Reuse schema/repository planning 016–018 with a newly reviewed cloud environment design.
 4. Add Cognito sign-in and server-enforced profile/role/organization/ownership checks, then ticket creation/editing, assignments, history and support conversations within those access boundaries.
 5. Add server-side searching/filtering/sorting/pagination for the 100,000-ticket learning dataset, real Analytics charts and role-based Administration behavior. Existing React/Vue pages are still demonstrations.
