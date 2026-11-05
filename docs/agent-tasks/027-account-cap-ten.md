@@ -1,0 +1,7 @@
+# Task 027 — Explicit shared account cap ten
+
+Date: November 5, 2026. Branch: feature/aws-first-launch. Status: implemented, integrated and independently reviewed; see reports 027/028.
+
+Read AGENTS.md, PROJECT_PLAN.md 5.33/5.34 and the embedded backend template context. aws_architecture owns scripts/aws/plan.mjs, scripts/aws/templates.mjs, scripts/aws/aws.test.mjs, infrastructure/backend.template.json, infrastructure/target.example.json, infrastructure/README.md and docs/implementation/027-account-cap-ten.md only. Root owns shared files, actual target and integration; reviewer frontend_review owns review 028. No Git/cloud operations, listeners, application/dependency changes or delegation.
+
+Add explicit account-cap-ten alongside unchanged reserved-two and account-cap-five. Preserve the old five ceiling and make ten require explicit acceptance, fresh evidence and account quota no higher than ten. No autoacceptance or unresolved default fallback. Add ten to the template enum, preserve the existing condition/reservation behavior, regenerate templates consistently and update current instructions without rewriting historical reports. Example target remains incomplete/unaccepted; no actual account identifier in tracked content. Test accepted ten, eleven rejection, five-mode/ten-quota rejection, missing acceptance, stale evidence and mode propagation into planned parameters. Run bounded pure tests, schema/Guard validator, lint and owned formatting; do not run browser/ZIP/listener groups. Report results and actual limits, then release ownership.

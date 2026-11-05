@@ -63,9 +63,12 @@ export function validateTarget(target) {
       'Target must identify the reviewed Platypus project, real account, eu-north-1 and profile.',
     );
   const c = target.concurrency;
-  if (!c || !['reserved-two', 'account-cap-five'].includes(c.mode))
+  if (
+    !c ||
+    !['reserved-two', 'account-cap-five', 'account-cap-ten'].includes(c.mode)
+  )
     throw new Error(
-      'Concurrency decision unresolved: actual account limit five cannot reserve two.',
+      'Concurrency decision unresolved: choose a reviewed reservation or shared account-cap mode.',
     );
   if (
     !Number.isInteger(c.accountLimit) ||
@@ -86,12 +89,17 @@ export function validateTarget(target) {
     throw new Error(
       'Reserved two requires two available executions above the unreserved buffer of 100.',
     );
+  const sharedCaps = {
+    'account-cap-five': { maximum: 5, label: 'five' },
+    'account-cap-ten': { maximum: 10, label: 'ten' },
+  };
+  const cap = sharedCaps[c.mode];
   if (
-    c.mode === 'account-cap-five' &&
-    (!c.acceptedSharedAccountCap || c.accountLimit > 5)
+    cap &&
+    (c.acceptedSharedAccountCap !== true || c.accountLimit > cap.maximum)
   )
     throw new Error(
-      'Account-cap-five requires explicit acceptance and a fresh account limit no higher than five.',
+      `Account-cap-${cap.label} requires explicit acceptance and a fresh account limit no higher than ${cap.label}.`,
     );
   return target;
 }
@@ -158,7 +166,7 @@ export async function makePlan({
   if (!target) {
     plan.gates = [
       'Copy infrastructure/target.example.json into ignored .local/aws/target.json and fill reviewed non-secret values.',
-      'Choose the concurrency strategy explicitly: current account limit five cannot reserve two.',
+      'Choose the concurrency strategy explicitly using fresh reviewed quota evidence; do not silently use shared account capacity.',
       'Cloud publication and resource operations require a separate user-approved step.',
     ];
     return plan;

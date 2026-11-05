@@ -17,7 +17,7 @@ The locally verified application has an Angular Shell, Angular Support, React An
 | Backend        | Node.js HTTP API: `GET /api/health` and `GET /api/tickets`                                      |
 | Shared tooling | Tailwind theme, ESLint, Prettier, typechecking, server/lifecycle and browser verification       |
 
-The current slice runs locally. Sign-in, server-enforced permissions, database persistence, business charts, conversations and AI features are later stages. The first AWS launch is partial: private storage and Lambda exist, but CloudFront requires account verification through AWS Support. No public application URL exists yet.
+The current slice runs locally. Sign-in, server-enforced permissions, database persistence, business charts, conversations and AI features are later stages. The first AWS launch is partial: private storage and Lambda exist, and AWS Support has now confirmed account verification. The empty failed edge stack still awaits separately authorized deletion/recreation. No public application URL exists yet.
 
 ## Planned product
 
@@ -34,7 +34,7 @@ These are agreed targets, not a list of implemented features. Detailed requireme
 
 As of November 4, 2026, the learner has created the **Platypus Service** AWS project on the **Free plan** in **Europe (Stockholm), `eu-north-1`**. AWS CLI **2.39.3**, browser-based sign-in and the local `platypus-dev` profile were verified in the learner's terminal. The user installed **25 AWS skills**, `uv` **0.13.7** and Codex CLI **0.166.0**. The AWS wizard could not finish MCP configuration on Windows; a manual `codex.cmd mcp add` registered `aws-mcp` with profile `platypus-dev` and default operation Region `eu-north-1`. After a client restart, the coordinator successfully called **STS GetCallerIdentity through MCP**, matching the project identity previously checked in the terminal. This verifies authenticated agent access, not every permission needed for deployment.
 
-The reviewed first-deployment proposal uses private S3 storage, CloudFront delivery and a Lambda Event Function serving the existing 25 examples. PostgreSQL follows as a separately estimated stage. Deployment preparation is implemented and locally verified: three CloudFormation templates, a Lambda adapter, immutable frontend/server packaging, offline operation plans and a packaged-layout preview. Independent review 024 records the findings and remaining cloud checks. The subsequent approved launch created storage and Lambda; CloudFront rolled back because AWS requires account verification. See [actual launch status](docs/implementation/025-first-aws-launch.md). Free-plan credits and allowances have conditions and expiry; deployment or spending requires a separately agreed step.
+The reviewed first-deployment proposal uses private S3 storage, CloudFront delivery and a Lambda Event Function serving the existing 25 examples. PostgreSQL follows as a separately estimated stage. Deployment preparation is implemented and locally verified: three CloudFormation templates, a Lambda adapter, immutable frontend/server packaging, offline operation plans and a packaged-layout preview. Independent review 024 records the findings and remaining cloud checks. The subsequent approved launch created storage and Lambda; CloudFront initially rolled back because AWS required account verification. Support has since confirmed verification; CloudFront recreation has not yet been attempted. See [actual launch status](docs/implementation/025-first-aws-launch.md). Free-plan credits and allowances have conditions and expiry; deployment or spending requires a separately agreed step.
 
 - [First AWS deployment architecture](docs/architecture/019-aws-first-deployment-architecture.md)
 - [Cost assumptions, estimates and teardown](docs/research/020-aws-cost-plan.md)
@@ -51,7 +51,7 @@ npm.cmd run aws:preview -- --manifest .local/aws/releases/preview-a/manifest.jso
 
 Open **http://localhost:4400/support/tickets**. Use a new release identifier if that directory already exists. This serves packaged Angular/React/Vue assets and the ZIP-extracted Lambda handler locally; it is not an AWS deployment. Source localhost settings remain unchanged. See [deployment preparation commands and limits](infrastructure/README.md).
 
-`npm.cmd run aws:validate` checks templates and Guard policies; `npm.cmd run test:aws` checks real packaging, browser loading, offline gates and update/rollback plans. The account has five concurrent Lambda executions available. The user accepted the shared account-wide cap for the first launch; a reservation of two is unavailable under this quota. Real edge outputs remain unresolved until account verification succeeds. A concurrency quota is not a monthly spending limit.
+`npm.cmd run aws:validate` checks templates and Guard policies; `npm.cmd run test:aws` checks real packaging, browser loading, offline gates and update/rollback plans. Fresh November 5 evidence shows ten concurrent Lambda executions in eu-north-1. The user accepted the shared account-wide cap of ten, and task 027 adds the explicit account-cap-ten plan mode. A reservation of two remains unavailable under this quota. The deployed backend still carries the historical account-cap-five parameter label until a later stack update; neither shared-cap mode creates a function reservation. Real edge outputs remain unresolved pending separately authorized recovery of the empty failed edge stack. A concurrency quota is not a monthly spending limit.
 
 ## Start locally
 
@@ -276,4 +276,6 @@ See the [local Git baseline report](docs/implementation/010-git-baseline.md).
 - [Deployment preparation review](docs/reviews/024-aws-deployment-preparation-review.md)
 - [First AWS launch: partial deployment](docs/implementation/025-first-aws-launch.md)
 - [First launch review](docs/reviews/026-first-aws-launch-review.md)
+- [Shared account-cap-ten update](docs/implementation/027-account-cap-ten.md)
+- [Shared-cap independent review](docs/reviews/028-account-cap-ten-review.md)
 - [Unsent CloudFront account-verification draft](docs/operations/025-cloudfront-account-verification.md)

@@ -178,8 +178,14 @@ export function backendTemplate() {
         { AllowedPattern: '^[a-f0-9]{64}$' },
       ),
       ConcurrencyMode: parameter(
-        'No default. reserved-two needs available quota; account-cap-five needs explicit review and fresh account quota evidence.',
-        { AllowedValues: ['reserved-two', 'account-cap-five'] },
+        'No default. reserved-two needs available quota; shared account-cap-five or account-cap-ten needs explicit acceptance and fresh matching quota evidence.',
+        {
+          AllowedValues: [
+            'reserved-two',
+            'account-cap-five',
+            'account-cap-ten',
+          ],
+        },
       ),
       RollbackVersion: parameter(
         'Existing version of this same function for alias-only rollback; empty selects this revision.',
@@ -260,8 +266,8 @@ export function backendTemplate() {
         },
         'Classic Event Function has no HTTP listener, VPC, provisioned capacity or database. Configuration fingerprint changes even for configuration-only releases.',
         [
-          'Current account quota five cannot reserve two under the unreserved-buffer rule.',
-          'Account-cap-five is an explicit alternative, not an automatic fallback.',
+          'Reserved two needs two available executions above the unreserved buffer of 100.',
+          'Shared account caps five or ten require fresh matching quota evidence and explicit acceptance; never use them as automatic fallbacks.',
           'Do not remove the required concurrency-mode decision.',
         ],
       ),

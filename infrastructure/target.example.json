@@ -6,8 +6,8 @@
   "stackPrefix": "platypus-dev",
   "concurrency": {
     "mode": "unresolved",
-    "accountLimit": 5,
-    "unreserved": 5,
+    "accountLimit": 10,
+    "unreserved": 10,
     "reviewedAt": null,
     "acceptedSharedAccountCap": false
   },

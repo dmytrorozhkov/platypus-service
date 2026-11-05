@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -155,6 +155,117 @@ test('offline defaults and target gates reject execution and the unavailable res
   );
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Unsupported/);
+});
+
+test('account-cap-ten requires fresh explicit acceptance and preserves the stricter five and reserved-two guards', () => {
+  const ten = target();
+  ten.concurrency = {
+    ...ten.concurrency,
+    mode: 'account-cap-ten',
+    accountLimit: 10,
+    unreserved: 10,
+  };
+  assert.equal(validateTarget(ten), ten);
+  const excessive = structuredClone(ten);
+  excessive.concurrency.accountLimit = 11;
+  excessive.concurrency.unreserved = 11;
+  assert.throws(() => validateTarget(excessive), /no higher than ten/);
+  for (const acceptance of [false, undefined, 'true']) {
+    const unaccepted = structuredClone(ten);
+    unaccepted.concurrency.acceptedSharedAccountCap = acceptance;
+    assert.throws(() => validateTarget(unaccepted), /explicit acceptance/);
+  }
+  const five = structuredClone(ten);
+  five.concurrency.mode = 'account-cap-five';
+  assert.throws(() => validateTarget(five), /no higher than five/);
+  assert.equal(validateTarget(target()).concurrency.mode, 'account-cap-five');
+  const stale = structuredClone(ten);
+  stale.concurrency.reviewedAt = '2020-01-01T00:00:00.000Z';
+  assert.throws(() => validateTarget(stale), /Refresh/);
+  const unresolved = structuredClone(ten);
+  unresolved.concurrency.mode = 'unresolved';
+  assert.throws(() => validateTarget(unresolved), /unresolved/);
+  const reserved = target();
+  reserved.concurrency.mode = 'reserved-two';
+  reserved.concurrency.accountLimit = 102;
+  reserved.concurrency.unreserved = 101;
+  assert.throws(() => validateTarget(reserved), /unreserved buffer/);
+  reserved.concurrency.unreserved = 102;
+  assert.equal(validateTarget(reserved).concurrency.mode, 'reserved-two');
+  const template = backendTemplate();
+  assert.deepEqual(template.Parameters.ConcurrencyMode.AllowedValues, [
+    'reserved-two',
+    'account-cap-five',
+    'account-cap-ten',
+  ]);
+  assert.equal(template.Parameters.ConcurrencyMode.Default, undefined);
+  assert.deepEqual(template.Conditions.UseReservedTwo, {
+    'Fn::Equals': [{ Ref: 'ConcurrencyMode' }, 'reserved-two'],
+  });
+  assert.deepEqual(
+    template.Resources.Function.Properties.ReservedConcurrentExecutions,
+    { 'Fn::If': ['UseReservedTwo', 2, { Ref: 'AWS::NoValue' }] },
+  );
+});
+
+test('account-cap-ten flows unchanged into offline bootstrap and publication parameters', async () => {
+  // A full test run already prepared cloud; a bounded rerun only reads prior ignored evidence.
+  let fixture = cloud;
+  if (!fixture) {
+    const releases = path.join(projectRoot, '.local/aws/releases');
+    const names = (await readdir(releases))
+      .filter((name) => name.startsWith('test-') && name.endsWith('-cloud'))
+      .sort()
+      .reverse();
+    for (const name of names) {
+      try {
+        const prepared = await ownedManifest(
+          path.join(releases, name, 'manifest.json'),
+        );
+        fixture = { directory: prepared.directory, value: prepared.value };
+        break;
+      } catch {
+        /* Older incomplete evidence is not a valid plan fixture. */
+      }
+    }
+  }
+  assert.ok(
+    fixture,
+    'Run the full preparation tests once before a bounded plan-only rerun.',
+  );
+  const ten = target();
+  ten.concurrency = {
+    ...ten.concurrency,
+    mode: 'account-cap-ten',
+    accountLimit: 10,
+    unreserved: 10,
+  };
+  ten.resources.origin = fixture.value.origin;
+  for (const action of ['bootstrap', 'publish']) {
+    const plan = await makePlan({
+      action,
+      target: ten,
+      manifest: manifestPath(fixture),
+    });
+    assert.equal(plan.offline, true);
+    assert.equal(plan.executionAuthorized, false);
+    const backend = plan.steps.find(
+      (step) =>
+        ['CreateStack', 'UpdateStack'].includes(step.operation) &&
+        step.input.StackName.endsWith('-backend'),
+    );
+    assert.equal(
+      backend.input.Parameters.find(
+        (item) => item.ParameterKey === 'ConcurrencyMode',
+      ).ParameterValue,
+      'account-cap-ten',
+    );
+    assert.equal(
+      plan.steps.find((step) => step.id === 'quota').assert
+        .quotaMatchesReviewedTarget.accountLimit,
+      10,
+    );
+  }
 });
 
 test('bootstrap phases avoid hostname cycles and update versions from code plus exact origin', async () => {
