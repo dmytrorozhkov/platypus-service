@@ -17,6 +17,8 @@ on:
         value: ${{ jobs.checks.outputs.release }}
       artifact-id:
         value: ${{ jobs.checks.outputs.artifact-id }}
+      artifact-digest:
+        value: ${{ jobs.checks.outputs.artifact-digest }}
       envelope-sha256:
         value: ${{ jobs.checks.outputs.envelope-sha256 }}
 
@@ -37,6 +39,7 @@ jobs:
     outputs:
       release: ${{ steps.bundle.outputs.release }}
       artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+      artifact-digest: ${{ steps.artifact.outputs.artifact-digest }}
       envelope-sha256: ${{ steps.bundle.outputs.envelope-sha256 }}
     defaults:
       run:

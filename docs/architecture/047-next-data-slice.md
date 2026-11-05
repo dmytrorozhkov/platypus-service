@@ -1,0 +1,11 @@
+# Next data slice proposal 047
+
+Date: November 5, 2026. Author lane: data_next_slice. Planning only; no SQL execution, installation, database provisioning or tests performed.
+
+Reuse016's three business tables organizations/support_agents/tickets plus schema_migrations/seed_runs. support_agents is a fictional assignment directory, not an authentication or permission record. Internal fixed UUID identities stay separate from PS numbers and nonunique display names. Foreign keys restrict deletion; nonblank required values, unique numbers, valid statuses and finite/noninverted timestamps are enforced. The API retains seven properties and total===items.length. Preserve agreed PostgreSQL core/support/knowledge data, Cognito sign-in and DynamoDB private AI conversations; no full future identity model is needed now.
+
+Data owner: schema/migration SQL, stable identity map, deterministic seed and focused real-database tests. Migrations/seed are explicit owner commands, never HTTP or startup side effects. Use transaction and bounded shared lock; applied immutable files have checksums; unchanged seed is a no-op preserving edits and IDs. Reject drift and ambiguous partial prepopulation; never truncate/upsert-repair at startup. Keep fixtures/tickets.json authoritative.
+
+Acceptance: actual5 organizations,3 assignees,25 tickets and exact API order/null/time parity; constraints and SELECT-only runtime account; failed setup rolls back; concurrent setup cannot double-apply; distinctive edit survives real same-storage database/API restart; actual test-owned outage returns sanitized bounded500 and Retry recovers. Tests must own their database and restart boundary. A separate logical database does not isolate an instance restart. SQL files or a mocked driver do not prove persistence.
+
+No native Windows installation is assumed after the AWS-first decision. An isolated hosted-CI database or separately agreed local mechanism can supply real test evidence; choose and verify it before implementing tests. AWS PostgreSQL hosting, regional/plan availability, full cost, network/TLS/secrets, Lambda connection budget and migration operator remain deployment-design gates. Do not infer these from old local settings. No paid service choice was made.
