@@ -1,6 +1,6 @@
 # CloudFront account verification request — draft only
 
-Status: prepared November 5, 2026; not submitted. The learner owns account verification and any Support correspondence. Do not send this draft automatically or put passwords, tokens or identity documents in the repository/chat.
+Status: reference draft prepared November 5, 2026. The learner subsequently submitted a shorter equivalent request titled CloudFront account verification required through the Support interface on the same date; its case-details page and initial correspondence were shown. The text below is reference wording, not a verbatim transcript of that submission. No AWS response or completed verification has been observed. Read PROJECT_PLAN.md 5.32. The learner owns account verification and any Support correspondence. Do not send this draft automatically or put passwords, tokens or identity documents in the repository/chat.
 
 Open https://console.aws.amazon.com/support/home#/ and create an account-verification/account-and-billing case in the existing account. Use the available account-support route; do not purchase a support plan or upgrade the account merely to open this request. If the available choices differ, inspect them before selecting a paid option.
 
