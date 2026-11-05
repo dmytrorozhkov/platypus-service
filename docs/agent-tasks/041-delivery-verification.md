@@ -1,6 +1,6 @@
 # Task 041 — delivery verification
 
-Date: November 5, 2026. Branch: feature/github-delivery. Status: local implementation complete and reviewed in042; hosted CI pending; AWS setup/live proof blocked by connector availability.
+Date: November 5, 2026. Branch: feature/github-delivery. Status: local implementation complete and reviewed in042; hosted CI verified at a0a08f0; AWS setup/live proof blocked by connector availability.
 
 The learner accepted Deploy implementation after completed main promotion037/038. Read AGENTS.md, PROJECT_PLAN.md5.40, proposals033–035/review036 and docs/architecture/039-delivery-contract.md. Owner: delivery_verification. Isolated write scope: scripts/delivery/publish.test.mjs, scripts/delivery/state.test.mjs and docs/implementation/041-delivery-verification.md. Root owns package scripts, shared docs/configuration, Git and all live setup/execution.
 

@@ -53,3 +53,7 @@ node scripts/delivery/cli.mjs reconcile --expected-pending <exact-operation-id> 
 - [S3 PutObject conditional writes and checksums](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html).
 - [CloudFormation UPDATE change sets](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/create-change-set.html).
 - [DescribeChangeSet output and property details](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/describe-change-set.html). It does not return RoleARN; the executor checks the existing stack association before creation/execution.
+
+## Coordinator hosted verification
+
+Root observed successful feature-branch [CI run42109733203](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42109733203) at exact source commit a0a08f0cc820e68098fe1cecacac4a9eae1b40db. The clean runner completed all required checks/builds/tests, including the 34 delivery groups; publication-only bundle/upload steps were skipped on this ordinary push. This is hosted CI evidence, not a manual Deploy/artifact transfer, AWS setup or live recovery proof. The implementation remains in feature/github-delivery and DELIVERY_ENABLED stays absent/false.

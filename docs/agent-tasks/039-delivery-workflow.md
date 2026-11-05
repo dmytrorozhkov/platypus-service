@@ -1,6 +1,6 @@
 # Task 039 — delivery workflow
 
-Date: November 5, 2026. Branch: feature/github-delivery. Status: local implementation complete and reviewed in042; hosted CI pending; AWS setup/live proof blocked by connector availability.
+Date: November 5, 2026. Branch: feature/github-delivery. Status: local implementation complete and reviewed in042; hosted CI verified at a0a08f0; AWS setup/live proof blocked by connector availability.
 
 The learner accepted Deploy implementation after completed main promotion037/038. Read AGENTS.md, PROJECT_PLAN.md5.40, proposals033–035/review036 and docs/architecture/039-delivery-contract.md. Owner: ci_implementation. Isolated write scope: .github/workflows/ci.yml, .github/workflows/deploy.yml, scripts/delivery/bundle.mjs, scripts/delivery/bundle.test.mjs and docs/implementation/039-delivery-workflow.md. Root owns package scripts, shared docs/configuration, Git and all live setup/execution.
 

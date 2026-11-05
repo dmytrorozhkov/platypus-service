@@ -242,7 +242,7 @@ Checks include real server responses, controlled empty/internal failures, explic
 
 ## Manual AWS delivery — prepared, disabled
 
-Stage039–043 adds a reusable CI interface, a manual main-only Deploy workflow, exact-source full bundles, private durable-state/import/recovery tooling and prepared scoped access documents. The existing checks/build job also runs npm.cmd run test:delivery. No AWS publisher credentials are present in the repository.
+Stage039–043 adds a reusable CI interface, a manual main-only Deploy workflow, exact-source full bundles, private durable-state/import/recovery tooling and prepared scoped access documents. The existing checks/build job also runs npm.cmd run test:delivery. No AWS publisher credentials are present in the repository. The implementation is saved on feature/github-delivery; its [actual CI run](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42109733203) passed all required checks/builds/tests at exact commit a0a08f0, including 34 delivery test groups. Publication-only upload steps were skipped on that ordinary push.
 
 The workflow stays disabled until its protected aws-learning environment is deliberately configured and DELIVERY_ENABLED is true. A missing setup stops before AWS authentication. Actual role setup, durable baseline import, hosted artifact handoff and live publication/recovery have not been demonstrated. The AWS connector currently rejects read-only calls with Unknown tool; resolve the connection before attempting live setup.
 

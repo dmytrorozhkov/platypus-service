@@ -28,3 +28,7 @@ The fake transport enforces object checksums, ownership fields and conditional w
 - npx.cmd eslint scripts/delivery/publish.test.mjs scripts/delivery/state.test.mjs --max-warnings 0 — passed.
 
 Root owns repository-wide lint/format checks, integration and independent review042. No application rebuild, shared release preparation, listener, browser, network call, AWS call or real deployment/recovery was performed by task041. The fake acceptance callback verifies executor ordering; it does not establish live HTTP/browser success. Actual AWS identity/policy behavior, hosted artifact handoff and the first authorized live publication/recovery remain separate evidence gates.
+
+## Coordinator hosted verification
+
+Root observed successful feature-branch [CI run42109733203](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42109733203) at exact source commit a0a08f0cc820e68098fe1cecacac4a9eae1b40db. The clean runner completed all required checks/builds/tests, including the 34 delivery groups; publication-only bundle/upload steps were skipped on this ordinary push. This is hosted CI evidence, not a manual Deploy/artifact transfer, AWS setup or live recovery proof. The implementation remains in feature/github-delivery and DELIVERY_ENABLED stays absent/false.
