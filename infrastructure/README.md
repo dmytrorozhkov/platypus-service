@@ -4,6 +4,12 @@ This directory defines the first fictional learning deployment. The scripts **pr
 
 The topology is private S3, CloudFront **pay-as-you-go**, and a classic Node.js 24 Arm64 Lambda Event Function with an IAM-protected Function URL. It has no database, application sign-in, custom domain, VPC, NAT, paid model, hosted build pipeline, WAF subscription or Lambda@Edge. The generated CloudFront HTTPS hostname avoids certificate/domain setup. OAC means origin access control, which lets only the specified distribution reach an origin; it is not user authentication.
 
+## Current public deployment
+
+On November 5, 2026, the learner-approved first launch completed after Support account verification and separately approved removal of the empty failed edge record. The existing storage/backend were preserved. The three stacks are complete, CloudFront is enabled/deployed, and the live alias serves version 2 with account-cap-ten and the actual HTTPS origin. Open [Support](https://d2p7y3iystcl60.cloudfront.net/support/tickets), [Analytics](https://d2p7y3iystcl60.cloudfront.net/analytics) or [Administration](https://d2p7y3iystcl60.cloudfront.net/administration). No application server needs to run on this computer.
+
+The complete current manifest and pointer/alias checkpoint live in ignored .local/aws/releases/cloud-live-20261105/manifest.json and .local/aws/current-deployment.json; preserve them for later conditional updates. All 27 current objects and the prior bootstrap ZIP were inventoried. Live HTTP/browser checks passed, including exact fixtures, private origins, cache metadata, direct refresh, navigation cleanup, mobile layout and a browser-controlled 503/Retry. A real cloud outage, independent feature update/rollback and full teardown were not tested. Free plan remained active with USD 120 observed after checks; this is not a zero-bill or permanent-free guarantee. See [report 029](../docs/implementation/029-first-public-aws-launch.md) and [review 030](../docs/reviews/030-first-public-aws-launch-review.md).
+
 ## Offline preparation
 
 Build the existing workspaces first. In PowerShell at the repository root:

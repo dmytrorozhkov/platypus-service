@@ -1,0 +1,10 @@
+# Task 029 — Resume the verified-account first AWS launch
+
+Date: November 5, 2026. Branch: feature/aws-first-launch.
+Status: deployed and verified; independent review 030 found no deployment blocker. Learner-visible acceptance is pending.
+
+The learner directly approved deleting only the empty failed edge stack and continuing the previously approved first S3/CloudFront/Lambda launch. Read PROJECT_PLAN.md 5.31–5.35, deployment preparation 023/024, partial launch 025/026, cap-ten update 027/028 and infrastructure/README.md. Root owns live mutations and shared integration; aws_architecture independently reviews sequencing; frontend_review reviews the prepared browser checker and completed evidence. Agents may write scoped verification/report artifacts, with root coordinating shared records.
+
+Verify identity, FREE/ACTIVE plan and available credits, accepted ten-execution quota, exact stack ARN/tag and eight deleted logical resources. Delete only that empty edge record and recreate the unchanged edge disabled, preserving storage/backend and normal rollback/validation. Use the actual new distribution outputs, prepare a fresh immutable release, verify uploaded bytes, update backend origin/live version and the single scoped bucket grant. Verify all graph checksums before writing the runtime pointer and Shell HTML last; enable only after those gates pass.
+
+Expected result: public HTTPS Analytics, Administration and 25-ticket Support, private S3/Function URL denial, exact JSON data/no-store, correct metadata/cache behavior, direct refresh, remote cleanup, mobile layout and browser-controlled failure/Retry. No localhost server is required. Preserve Free plan; no quota increase, account upgrade, database, paid AI, domain, extra service or unrelated deletion. Keep identifiers/raw evidence in ignored local files. Record actual states and limits; do not claim unperformed live rollback/teardown or durable CloudTrail retention.
