@@ -1,7 +1,7 @@
 # Task 029 — Resume the verified-account first AWS launch
 
 Date: November 5, 2026. Branch: feature/aws-first-launch.
-Status: deployed and verified; independent review 030 found no deployment blocker. Learner-visible acceptance is pending.
+Status: deployed and verified; independent review 030 found no deployment blocker. The learner opened the public application and confirmed it works on November 5, 2026, accepting the demonstrated slice.
 
 The learner directly approved deleting only the empty failed edge stack and continuing the previously approved first S3/CloudFront/Lambda launch. Read PROJECT_PLAN.md 5.31–5.35, deployment preparation 023/024, partial launch 025/026, cap-ten update 027/028 and infrastructure/README.md. Root owns live mutations and shared integration; aws_architecture independently reviews sequencing; frontend_review reviews the prepared browser checker and completed evidence. Agents may write scoped verification/report artifacts, with root coordinating shared records.
 

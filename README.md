@@ -17,7 +17,7 @@ The locally verified application has an Angular Shell, Angular Support, React An
 | Backend        | Node.js HTTP API: `GET /api/health` and `GET /api/tickets`                                      |
 | Shared tooling | Tailwind theme, ESLint, Prettier, typechecking, server/lifecycle and browser verification       |
 
-The current slice runs locally and on AWS. Open the [public Support page](https://d2p7y3iystcl60.cloudfront.net/support/tickets), [Analytics](https://d2p7y3iystcl60.cloudfront.net/analytics) or [Administration](https://d2p7y3iystcl60.cloudfront.net/administration); no local server is needed for these URLs. Sign-in, server-enforced permissions, database persistence, business charts, conversations and AI features are later stages. First public launch 029 passed live HTTP/browser checks and awaits the learner's visible acceptance. Existing LOCAL/local-development labels are inherited interface copy; verified requests use the cloud origin.
+The current slice runs locally and on AWS. Open the [public Support page](https://d2p7y3iystcl60.cloudfront.net/support/tickets), [Analytics](https://d2p7y3iystcl60.cloudfront.net/analytics) or [Administration](https://d2p7y3iystcl60.cloudfront.net/administration); no local server is needed for these URLs. Sign-in, server-enforced permissions, database persistence, business charts, conversations and AI features are later stages. First public launch 029 passed live HTTP/browser checks; the learner opened the public application and confirmed it works on November 5, 2026. Existing LOCAL/local-development labels are inherited interface copy; verified requests use the cloud origin.
 
 ## Planned product
 

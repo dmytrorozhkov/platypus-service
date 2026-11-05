@@ -1,7 +1,7 @@
 # First public AWS launch 029
 
 Date: November 5, 2026.
-Status: deployed and live verification passed; independent review 030 found no deployment blocker. Learner-visible acceptance remains pending.
+Status: deployed and live verification passed; independent review 030 found no deployment blocker. The learner opened the public application and confirmed it works on November 5, 2026, accepting the demonstrated slice.
 
 ## Scope and authorization
 
