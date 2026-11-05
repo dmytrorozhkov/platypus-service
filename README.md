@@ -175,6 +175,16 @@ For optional VS Code integration, install the **ESLint** extension (`dbaeumer.vs
 
 Implementation details and verification: [code quality report](docs/implementation/005-code-quality-tooling.md).
 
+## GitHub Actions checks
+
+Stage 031 adds .github/workflows/ci.yml for checks and builds, without AWS access or publication. It runs on pushes and pull requests in branches containing the workflow. It uses a standard Windows 2025 hosted runner, matching the existing PowerShell ZIP preparation and installed-Edge browser checks, with pinned Node 24.21.0/npm 11.19.0 and official action revisions.
+
+The job performs a clean npm install, lint/format/type checks, all five workspace builds, server/integration/startup tests, local infrastructure validation and the complete offline AWS-packaging test suite. Its temporary local browser/handler checks do not contact the deployed application or require an AWS account. No build artifact storage or deployment permission is configured. Automatic frontend/backend publication is a later stage.
+
+The first real hosted result is pending. This work lives on feature/github-ci; the repository's existing default branch remains planning/aws-first-deployment. A push to the new branch starts its workflow. The manual workflow_dispatch button requires the workflow file on the default branch; do not mistake that limitation for a failed push trigger. No default-branch or branch-protection setting was changed.
+
+Implementation and limits: [report 031](docs/implementation/031-github-ci.md); independent review: [report 032](docs/reviews/032-github-ci-review.md). Inspect actual executions in the repository's [Actions tab](https://github.com/dmytrorozhkov/platypus-service/actions).
+
 ## Verification
 
 ```powershell
