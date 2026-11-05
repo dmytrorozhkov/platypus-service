@@ -2,7 +2,7 @@
 
 Date: November 5, 2026.
 Branch: feature/github-ci.
-Status: pre-publication review complete; no confirmed blocker found. Actual GitHub-hosted execution remains pending the coordinator's reviewed push and observation.
+Status: review complete, including the first successful GitHub-hosted checkpoint; no confirmed blocker found.
 
 ## Scope and independent checks
 
@@ -18,7 +18,7 @@ No confirmed defect requiring correction.
 
 The workflow uses ordinary push and pull_request events, without branch filters or pull_request_target. Its optional workflow_dispatch is accurately documented: manual availability requires the workflow on the default branch. Publishing this feature branch can be verified through push without changing the existing default branch. [GitHub workflow events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows).
 
-One standard windows-2025 hosted job matches the existing powershell.exe ZIP implementation and installed Chromium browser detection. GitHub's current image inventory lists Edge and Chrome. Node 24.21.0 and npm 11.19.0 are explicit pins matching the project's current local tools; npm is installed globally only in the disposable runner. npm ci uses the existing lockfile, and setup-node caches npm downloads against that lockfile rather than reusing node_modules. The hosted image and package download services can change, so actual hosted verification is still necessary. [Windows runner inventory](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md).
+One standard windows-2025 hosted job matches the existing powershell.exe ZIP implementation and installed Chromium browser detection. GitHub's current image inventory lists Edge and Chrome. Node 24.21.0 and npm 11.19.0 are explicit pins matching the project's current local tools; npm is installed globally only in the disposable runner. npm ci uses the existing lockfile, and setup-node caches npm downloads against that lockfile rather than reusing node_modules. The first hosted outcome is recorded below; future runner-image or download-service changes can still affect later runs. [Windows runner inventory](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md).
 
 The token grants only contents: read, and checkout disables persisted credentials. There are no repository secrets, identity-token permissions, AWS authentication/operations, production URL probe, deployment command, larger runner or artifact-upload step. Ordinary npm dependency caching is configured; this is separate from uploading generated build/browser artifacts. The standard public-repository runner choice matches current GitHub free-compute guidance without changing repository/billing settings. [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
@@ -26,7 +26,7 @@ CI=true and disabled Angular analytics make the intended checks noninteractive. 
 
 Commands are ordered correctly: pinned tools, locked install, lint, formatting, typechecks, all five workspace builds, server tests against that build, integration contracts, startup/cleanup tests, offline infrastructure validation, then complete offline package/browser tests. Each validation/test is a separate PowerShell step with normal failure propagation. No continue-on-error, success-forcing suffix or condition skips failed checks. The offline tests do not need AWS credentials or contact the public application; test-owned temporary listeners are part of the existing test lifecycle.
 
-## Local evidence and hosted gate
+## Local evidence
 
 Implementation report 031 records the exact local commands passing under the CI environment settings:
 
@@ -37,4 +37,14 @@ Implementation report 031 records the exact local commands passing under the CI 
 
 These are implementer results inspected by the reviewer; the broad suite was not repeated concurrently. The implementer deliberately preserved the shared local installation, so local npm ci and global npm replacement were not performed. This is correctly disclosed rather than described as a clean hosted install.
 
-The workflow is suitable for the coordinator to commit/push and observe. A hosted run for that exact commit must still establish action execution, Node/npm setup, clean dependency installation, all validation/build/test steps and the final job conclusion. A successful local suite, YAML parse or accepted push is not hosted verification. Report or correct any concrete failure before marking stage 031 hosted-verified. No AWS deployment capability is approved or added by this CI-only stage.
+## First hosted checkpoint
+
+The coordinator subsequently published the reviewed workflow and observed the public GitHub API result, saving .local/ci/first-run-28d5c39.json. This reviewer independently read that file and ran consistency assertions over the exact commit, event/branch, run/job conclusions and every required step. All assertions passed. No new GitHub request or test-suite run was made by the reviewer for this checkpoint.
+
+- Commit: 28d5c39cf3c7aa5fc9f4550fd6dd8af173358556.
+- Event and branch: push on feature/github-ci.
+- Run: [CI 42072669079](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42072669079), completed with conclusion success.
+- Checks and builds job: 2026-11-05T17:14:35Z–17:17:34Z, completed with conclusion success.
+- All 18 recorded steps completed successfully, including checkout, Node setup, the npm pin, clean locked installation, lint/format/typechecks, all builds, server/integration/startup tests, offline template validation, full package/browser checks and post-job cleanup.
+
+This closes the first clean hosted-install/execution gate for the recorded commit. It does not establish a separately exercised pull-request/manual trigger or successful future commits, and it adds no AWS deployment capability. No confirmed corrective change was required after the first hosted run.

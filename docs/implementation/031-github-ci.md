@@ -1,7 +1,7 @@
 # Implementation 031 — GitHub Actions checks and builds
 
 Date: November 5, 2026. Branch: feature/github-ci.
-Status: implemented and locally verified; hosted execution remains pending coordinator publication and observation.
+Status: implemented, independently reviewed and verified in a successful actual GitHub-hosted run. Learner-visible acceptance remains pending.
 
 ## Change and boundaries
 
@@ -33,7 +33,13 @@ All following local commands exited successfully on Windows:
 
 Typechecking, builds and tests used CI=true and NG_CLI_ANALYTICS=false. Temporary listeners belonged to existing tests and were cleaned up through those tests; no manual development or preview server was started. The startup suite's occupied-port message is expected evidence of its ownership guard, not an unhandled test failure.
 
-npm ci and the global npm pin were deliberately not executed in the shared installed local worktree. A clean hosted install and actual GitHub workflow execution have not yet been observed by this implementer. The coordinator must publish the reviewed workflow, inspect the resulting push run and record its conclusion before claiming hosted verification. A local successful run does not prove that hosted dependency downloads, runner environment or browser execution will succeed.
+npm ci and the global npm pin were deliberately not executed in the shared installed local worktree. At the implementer handoff, a clean hosted install and actual GitHub workflow execution had not yet been observed. The coordinator subsequently verified the hosted run, as recorded in the checkpoint below. A local successful run does not prove that hosted dependency downloads, runner environment or browser execution will succeed.
+
+## Actual hosted verification
+
+After the independent pre-publication review, the coordinator published feature/github-ci and observed [CI run 42072669079](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42072669079) for exact commit 28d5c39cf3c7aa5fc9f4550fd6dd8af173358556. The push job ran from 2026-11-05T17:14:35Z to 2026-11-05T17:17:34Z and concluded success. All 18 recorded steps, including setup/cleanup, succeeded. The previously pending global npm pin and clean npm ci ran successfully in the disposable Windows runner, followed by every lint/format/type/build/test/validation step. No check was skipped or tolerated as a failure. The public GitHub API result is saved in ignored .local/ci/first-run-28d5c39.json.
+
+This checkpoint was added by the coordinator from the actual hosted result; the implementer's original local evidence above remains separately attributed. The workflow and application code did not change after that verified commit. Later documentation checkpoints may trigger another ordinary CI run. No AWS credential, cloud resource mutation or deployment was introduced.
 
 ## Usage and next boundary
 
