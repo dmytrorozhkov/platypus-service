@@ -747,6 +747,14 @@ Local implementation049 and independent code review050 are complete without a co
 
 Actual ordinary feature-branch CI for implementation commit 536b3b383882018a3a6708550cab0368480404f3 succeeded: https://github.com/dmytrorozhkov/platypus-service/actions/runs/42118681609. Clean install, lint/format/types, all five builds, server/integration/startup, offline infrastructure/package/browser and all37 delivery groups passed. Package-only creation/upload steps were correctly skipped for the push event. Raw public evidence is ignored in .local/ci/manual-package-536b3b3.json. This is hosted verification of the changed checks/source, not a manual Package run, authenticated artifact download, CodeBuild handoff or cloud publication. Canonical main, repository variables and AWS resources are unchanged. Later documentation commits may start separate CI runs whose outcomes are not inferred here.
 
+## 5.43. Parallel PostgreSQL and safe package reader — implementation authorized
+
+The learner explicitly authorized database work alongside safe archive receipt/version/integrity verification before CodeBuild, with no real publication. Root assigned three isolated implementation lanes051-053 and owns integration054/review055. Read docs/architecture/051-054-parallel-contract.md. This supersedes prior planning-only status for this bounded database increment; public writes/authentication/heavy-table behavior remain later work.
+
+No local PostgreSQL service/binaries or Docker command were found. Root selects a fresh disposable GitHub-hosted PostgreSQL18 test service instead of a machine installation or paid AWS database. Exact pg8.23.1/types8.23.1 were registry-verified and installed in the workspace. The database-backed server is an explicit separate entry requiring PG settings; existing default demo and live Lambda remain fixture-backed until separately reviewed deployment/environment decisions. Root must distinguish actual CI persistence/restart/browser proof from preparation and simulated tests. No AWS resource, setting, secret, CodeBuild execution, main promotion or live publication is authorized here.
+
+Local integration054 is prepared with implementations051/052/053 and independent source reviews055/056 reporting no confirmed blocker within this preparation scope. All five builds,24 server tests,46 delivery groups,2 federation contract tests,3 startup tests,9 offline package/browser groups and offline template validation passed. Real database/HTTP/browser/restart evidence is still pending the reviewed feature CI run, not inferred from mocks. See implementation054 for explicit commands, separate owner/runtime roles and remaining gates. No PostgreSQL installation is needed on the learner's computer for this hosted test.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.

@@ -1,0 +1,198 @@
+{
+  "organizations": [
+    {
+      "seedKey": "organization-1",
+      "id": "10000000-0000-4000-8000-000000000001",
+      "displayName": "Northstar Studio"
+    },
+    {
+      "seedKey": "organization-2",
+      "id": "10000000-0000-4000-8000-000000000002",
+      "displayName": "Cedar Labs"
+    },
+    {
+      "seedKey": "organization-3",
+      "id": "10000000-0000-4000-8000-000000000003",
+      "displayName": "Harbor Works"
+    },
+    {
+      "seedKey": "organization-4",
+      "id": "10000000-0000-4000-8000-000000000004",
+      "displayName": "Maple Logistics"
+    },
+    {
+      "seedKey": "organization-5",
+      "id": "10000000-0000-4000-8000-000000000005",
+      "displayName": "Orbit Learning"
+    }
+  ],
+  "supportAgents": [
+    {
+      "seedKey": "agent-1",
+      "id": "20000000-0000-4000-8000-000000000001",
+      "displayName": "Jordan Lee"
+    },
+    {
+      "seedKey": "agent-2",
+      "id": "20000000-0000-4000-8000-000000000002",
+      "displayName": "Sam Rivera"
+    },
+    {
+      "seedKey": "agent-3",
+      "id": "20000000-0000-4000-8000-000000000003",
+      "displayName": "Avery Morgan"
+    }
+  ],
+  "tickets": [
+    {
+      "number": "PS-1001",
+      "id": "30000000-0000-4000-8000-000000000001",
+      "organizationKey": "organization-1",
+      "assigneeKey": null
+    },
+    {
+      "number": "PS-1002",
+      "id": "30000000-0000-4000-8000-000000000002",
+      "organizationKey": "organization-2",
+      "assigneeKey": "agent-1"
+    },
+    {
+      "number": "PS-1003",
+      "id": "30000000-0000-4000-8000-000000000003",
+      "organizationKey": "organization-3",
+      "assigneeKey": "agent-2"
+    },
+    {
+      "number": "PS-1004",
+      "id": "30000000-0000-4000-8000-000000000004",
+      "organizationKey": "organization-4",
+      "assigneeKey": "agent-3"
+    },
+    {
+      "number": "PS-1005",
+      "id": "30000000-0000-4000-8000-000000000005",
+      "organizationKey": "organization-5",
+      "assigneeKey": null
+    },
+    {
+      "number": "PS-1006",
+      "id": "30000000-0000-4000-8000-000000000006",
+      "organizationKey": "organization-1",
+      "assigneeKey": "agent-2"
+    },
+    {
+      "number": "PS-1007",
+      "id": "30000000-0000-4000-8000-000000000007",
+      "organizationKey": "organization-2",
+      "assigneeKey": "agent-3"
+    },
+    {
+      "number": "PS-1008",
+      "id": "30000000-0000-4000-8000-000000000008",
+      "organizationKey": "organization-3",
+      "assigneeKey": "agent-1"
+    },
+    {
+      "number": "PS-1009",
+      "id": "30000000-0000-4000-8000-000000000009",
+      "organizationKey": "organization-4",
+      "assigneeKey": null
+    },
+    {
+      "number": "PS-1010",
+      "id": "30000000-0000-4000-8000-000000000010",
+      "organizationKey": "organization-5",
+      "assigneeKey": "agent-3"
+    },
+    {
+      "number": "PS-1011",
+      "id": "30000000-0000-4000-8000-000000000011",
+      "organizationKey": "organization-1",
+      "assigneeKey": "agent-1"
+    },
+    {
+      "number": "PS-1012",
+      "id": "30000000-0000-4000-8000-000000000012",
+      "organizationKey": "organization-2",
+      "assigneeKey": "agent-2"
+    },
+    {
+      "number": "PS-1013",
+      "id": "30000000-0000-4000-8000-000000000013",
+      "organizationKey": "organization-3",
+      "assigneeKey": null
+    },
+    {
+      "number": "PS-1014",
+      "id": "30000000-0000-4000-8000-000000000014",
+      "organizationKey": "organization-4",
+      "assigneeKey": "agent-1"
+    },
+    {
+      "number": "PS-1015",
+      "id": "30000000-0000-4000-8000-000000000015",
+      "organizationKey": "organization-5",
+      "assigneeKey": "agent-2"
+    },
+    {
+      "number": "PS-1016",
+      "id": "30000000-0000-4000-8000-000000000016",
+      "organizationKey": "organization-1",
+      "assigneeKey": "agent-3"
+    },
+    {
+      "number": "PS-1017",
+      "id": "30000000-0000-4000-8000-000000000017",
+      "organizationKey": "organization-2",
+      "assigneeKey": null
+    },
+    {
+      "number": "PS-1018",
+      "id": "30000000-0000-4000-8000-000000000018",
+      "organizationKey": "organization-3",
+      "assigneeKey": "agent-2"
+    },
+    {
+      "number": "PS-1019",
+      "id": "30000000-0000-4000-8000-000000000019",
+      "organizationKey": "organization-4",
+      "assigneeKey": "agent-3"
+    },
+    {
+      "number": "PS-1020",
+      "id": "30000000-0000-4000-8000-000000000020",
+      "organizationKey": "organization-5",
+      "assigneeKey": "agent-1"
+    },
+    {
+      "number": "PS-1021",
+      "id": "30000000-0000-4000-8000-000000000021",
+      "organizationKey": "organization-1",
+      "assigneeKey": null
+    },
+    {
+      "number": "PS-1022",
+      "id": "30000000-0000-4000-8000-000000000022",
+      "organizationKey": "organization-2",
+      "assigneeKey": "agent-3"
+    },
+    {
+      "number": "PS-1023",
+      "id": "30000000-0000-4000-8000-000000000023",
+      "organizationKey": "organization-3",
+      "assigneeKey": "agent-1"
+    },
+    {
+      "number": "PS-1024",
+      "id": "30000000-0000-4000-8000-000000000024",
+      "organizationKey": "organization-4",
+      "assigneeKey": "agent-2"
+    },
+    {
+      "number": "PS-1025",
+      "id": "30000000-0000-4000-8000-000000000025",
+      "organizationKey": "organization-5",
+      "assigneeKey": null
+    }
+  ]
+}

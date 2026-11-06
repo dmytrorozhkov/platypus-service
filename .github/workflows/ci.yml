@@ -30,8 +30,68 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
+  postgres:
+    name: Real PostgreSQL integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
+        env:
+          POSTGRES_DB: platypus_service_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-owner-only
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: 'true'
+      NG_CLI_ANALYTICS: 'false'
+      PGHOST: 127.0.0.1
+      PGPORT: ${{ job.services.postgres.ports[5432] }}
+      PGDATABASE: platypus_service_test
+      PGUSER: postgres
+      PGPASSWORD: ci-postgres-owner-only
+      PG_TEST_APP_USER: platypus_app_test
+      PG_TEST_APP_PASSWORD: ci-app-only
+      PLATYPUS_PG_TEST_OWNED: '1'
+      PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Pin npm in the temporary runner
+        run: npm install --global npm@11.19.0
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build workspaces for real database browser integration
+        run: npm run build
+      - name: Prepare marked disposable database and separate runtime role
+        run: node scripts/postgres-ci-setup.mjs
+      - name: Verify actual migrations, seed, constraints and read-only runtime
+        run: npm run test:postgres:integration
+      - name: Install browser in the temporary Linux runner
+        run: npx playwright install --with-deps chromium
+      - name: Verify persisted HTTP/browser data, actual database restart and Retry
+        run: npm run test:postgres:browser
+
   checks:
     name: Checks and builds
+    needs: postgres
     runs-on: windows-2025
     timeout-minutes: 30
     permissions:

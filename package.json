@@ -36,7 +36,13 @@
     "aws:validate": "node scripts/validate-aws.mjs",
     "test:aws": "node --test scripts/aws/*.test.mjs",
     "test:delivery": "node --test scripts/delivery/*.test.mjs",
-    "aws:delivery": "node scripts/delivery/cli.mjs"
+    "aws:delivery": "node scripts/delivery/cli.mjs",
+    "start:server:postgres": "npm run start:postgres --workspace @platypus/server",
+    "db:migrate": "npm run db:migrate --workspace @platypus/server",
+    "db:seed": "npm run db:seed --workspace @platypus/server",
+    "db:check": "npm run db:check --workspace @platypus/server",
+    "test:postgres:integration": "npm run test:postgres:integration --workspace @platypus/server",
+    "test:postgres:browser": "node scripts/postgres-browser-check.mjs"
   },
   "devDependencies": {
     "@aws/cloudformation-validate": "1.15.0",

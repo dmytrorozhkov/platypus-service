@@ -6,7 +6,7 @@ Coding agents research, implement and review bounded tasks. The learner defines 
 
 ## Current application
 
-The locally verified application has an Angular Shell, Angular Support, React Analytics and Vue Administration connected through **Native Federation**. Support displays **25 fictional tickets fetched from the independent Node.js server**. The examples are temporary server-owned JSON data, with a repository boundary prepared for later database integration.
+The locally verified application has an Angular Shell, Angular Support, React Analytics and Vue Administration connected through **Native Federation**. Support displays **25 fictional tickets fetched from the independent Node.js server**. The default local demo and deployed Lambda use temporary server-owned JSON data. An explicit PostgreSQL entry and migration/seed tools are now prepared separately; see [database integration 054](docs/implementation/054-postgres-integration.md) for its verification status and commands.
 
 | Area           | Available now                                                                                   |
 | -------------- | ----------------------------------------------------------------------------------------------- |
@@ -17,7 +17,7 @@ The locally verified application has an Angular Shell, Angular Support, React An
 | Backend        | Node.js HTTP API: `GET /api/health` and `GET /api/tickets`                                      |
 | Shared tooling | Tailwind theme, ESLint, Prettier, typechecking, server/lifecycle and browser verification       |
 
-The current slice runs locally and on AWS. Open the [public Support page](https://d2p7y3iystcl60.cloudfront.net/support/tickets), [Analytics](https://d2p7y3iystcl60.cloudfront.net/analytics) or [Administration](https://d2p7y3iystcl60.cloudfront.net/administration); no local server is needed for these URLs. Sign-in, server-enforced permissions, database persistence, business charts, conversations and AI features are later stages. First public launch 029 passed live HTTP/browser checks; the learner opened the public application and confirmed it works on November 5, 2026. Existing LOCAL/local-development labels are inherited interface copy; verified requests use the cloud origin.
+The current slice runs locally and on AWS. Open the [public Support page](https://d2p7y3iystcl60.cloudfront.net/support/tickets), [Analytics](https://d2p7y3iystcl60.cloudfront.net/analytics) or [Administration](https://d2p7y3iystcl60.cloudfront.net/administration); no local server is needed for these URLs. Sign-in, server-enforced permissions, production database hosting/connection, business charts, conversations and AI features are later stages. PostgreSQL preparation does not switch this public demo to a database. First public launch 029 passed live HTTP/browser checks; the learner opened the public application and confirmed it works on November 5, 2026. Existing LOCAL/local-development labels are inherited interface copy; verified requests use the cloud origin.
 
 ## Planned product
 
