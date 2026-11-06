@@ -1,0 +1,9 @@
+# Independent local password runner review061
+
+Date: November6,2026. Reviewer: frontend_next_slice; read-only source inspection of runner060, existing npm/database commands and the author report.
+
+No confirmed blocker for handing only the migration action to the learner. Fixed project identity, loopback target, database and owner role; pre-prompt action validation; quoted allowlisted npm invocation; hidden prompt to child-only password environment; BSTR clearing/SecureString disposal; generic runner errors and sanitized existing migration failures were checked. The reviewer ran no tests and collected no password; no SQL, service, Git, setting or cloud operation occurred.
+
+One concrete initial cleanup finding: taskkill completion did not inspect its exit code or confirm original-child exit. The author corrected it to require bounded taskkill completion/exit0 plus bounded wait on the original child handle; failure emits a generic message and exit1. The reviewer reread that delta and confirmed this source finding resolved. No remaining confirmed migration-preparation blocker was reported. No demonstrated PID/tree mistargeting issue was found in the inspected path. Actual interactive Ctrl+C and authenticated SQL execution remain unverified.
+
+The author separately ran WindowsPowerShell5.1 syntax, fake-command/secret-sentinel environment and invalid-action/native-exit checks, then an exact parsed cleanup block against an owned harmless Node timer. Root independently reran the fake sentinel harness successfully; no database was invoked. Shared lint/format and whitespace checks passed. This evidence establishes wrapper boundaries, not actual role passwords, migrations, seed, grants, SQL persistence or runtime HTTP. The learner must now invoke the explicit migrate action with their private platypus_owner password.
