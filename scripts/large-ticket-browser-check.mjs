@@ -374,6 +374,9 @@ try {
   await expect(
     page.getByText('100000 matching tickets', { exact: false }),
   ).toBeVisible();
+  await expect(page.getByLabel('Sort by', { exact: true })).toHaveValue(
+    'createdAt',
+  );
   const initialRenderMs = Number((performance.now() - started).toFixed(2));
   await change(
     () => page.getByRole('button', { name: 'Next page', exact: true }).click(),
@@ -476,6 +479,17 @@ try {
   );
   passed(
     'Actual Angular frontend requests pages25/50/100, resets paging for filters, shows filtered counts and can recover from empty search without loading all records.',
+  );
+  await change(
+    () =>
+      page.getByRole('button', { name: 'Reset filters', exact: true }).click(),
+    { page: 1, pageSize: 25, sort: 'createdAt', direction: 'desc', search: '' },
+  );
+  await expect(page.getByLabel('Sort by', { exact: true })).toHaveValue(
+    'createdAt',
+  );
+  await expect(page.getByLabel('Rows per page', { exact: true })).toHaveValue(
+    '25',
   );
   await stopApi();
   await page.reload();

@@ -35,3 +35,7 @@ Root owns shared builds and browser/real100000-row integration, the frontend-onl
 ## Integration correction — stable accessible select names
 
 The coordinator's actual built-UI smoke reached the first paged table and page2, then its exact Rows per page label lookup timed out because the wrapping label included option text. All six select controls now have explicit stable aria-label names matching their visible labels; the visible wrapping labels remain. This corrects the discovered accessibility/automation boundary. Focused template ESLint and strict ngc --noEmit checks passed on the corrected source; no full browser pass is claimed by this correction. Root owns rebuilding Support and rerunning browser/hosted acceptance.
+
+## Integration correction — dynamic sort selection
+
+The coordinator's built paged screenshot showed Number in the sort control while the requested/current query used createdAt. Source inspection confirms the select value was written before its dynamic @for options existed, leaving the browser's first-option default. Each sort option now binds selected to the current query so initial creation and Reset filters reflect createdAt rather than the first option. The parent value binding remains for normal user changes. Focused template ESLint and strict ngc --noEmit passed; root must rebuild and assert the actual select value both initially and after number-to-reset. No browser pass is inferred from source changes.

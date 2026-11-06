@@ -102,7 +102,12 @@
           (change)="filter('sort', $event)"
         >
           @for (sort of sorts; track sort.value) {
-          <option [value]="sort.value">{{ sort.label }}</option>
+          <option
+            [value]="sort.value"
+            [selected]="store.query().sort === sort.value"
+          >
+            {{ sort.label }}
+          </option>
           }
         </select>
       </label>
