@@ -349,8 +349,8 @@ test('real PostgreSQL migration, seed, constraints and least-privilege boundary'
         ],
         ["UPDATE platypus.organizations SET display_name=' '", '23514'],
         ["UPDATE platypus.support_agents SET display_name=' '", '23514'],
-        ['DELETE FROM platypus.organizations', '23503'],
-        ['DELETE FROM platypus.support_agents', '23503'],
+        ['DELETE FROM platypus.organizations', '23001'],
+        ['DELETE FROM platypus.support_agents', '23001'],
       ];
       for (const [sql, code] of statements)
         await rejectedStatement(owner, sql, undefined, code);
