@@ -765,6 +765,8 @@ Root verified actual latest feature CI42195237272 atcc34dfa, clean worktree and 
 
 Local installer preparation058 is complete: the actual official PostgreSQL18.6-5 Windowsx64 installer was downloaded under ignored .local/postgres/setup; exact414966472bytes/hash match the published EDB sidecar and Authenticode is Valid for EnterpriseDB Corporation. Root independently verified the saved hash/signature. No installer was executed or local service/cluster created. The next local learner action is only opening the verified file and stopping at Welcome. Main CI remains at browser installation at this checkpoint; user-started Package handoff waits for observed main success. Save the record locally and avoid a second main push cancelling the active main run.
 
+Main CI42196363418 atcc34dfa has now actually completed successfully in both required jobs; ordinary CI is distinct from a manual Package run. The learner completed the native PostgreSQL installer using the general multi-project D:\PostgreSQL\18\data path, port5432 and observed service postgresql-x64-18. Root verified client18.6, Running service and a ready loopback listener. No authenticated SQL session, project database/roles, actual SQL configuration or local persistence is established yet; administrator credentials stay local. Respect the now-shared instance and do not use CI restart/setup helpers against it. Next guided step is a password-prompting local psql connection. Reports057/058 distinguish preparation from installed status; no AWS or Package/Deploy action occurred.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.
