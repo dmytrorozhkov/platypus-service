@@ -6,7 +6,7 @@ Coding agents research, implement and review bounded tasks. The learner defines 
 
 ## Current application
 
-The locally verified application has an Angular Shell, Angular Support, React Analytics and Vue Administration connected through **Native Federation**. Support displays **25 fictional tickets fetched from the independent Node.js server**. The default local demo and deployed Lambda use temporary server-owned JSON data. An explicit PostgreSQL entry and migration/seed tools are now prepared separately; see [database integration 054](docs/implementation/054-postgres-integration.md) for its verification status and commands.
+The locally verified application has an Angular Shell, Angular Support, React Analytics and Vue Administration connected through **Native Federation**. Support displays **25 fictional tickets fetched from the independent Node.js server**. The default local demo and deployed Lambda use temporary server-owned JSON data. An explicit PostgreSQL entry and migration/seed tools are independently reviewed and verified against a real disposable database in GitHub Actions; see [database integration 054](docs/implementation/054-postgres-integration.md) for its verification status and commands.
 
 | Area           | Available now                                                                                   |
 | -------------- | ----------------------------------------------------------------------------------------------- |
