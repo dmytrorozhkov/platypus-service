@@ -58,3 +58,24 @@ Root also made the response waiter and browser action share Promise.all so eithe
 ## Visible sort state correction
 
 Visual inspection of the built mocked-response page revealed an additional real UI discrepancy: requests used the default createdAt order, but the dynamic Sort by select displayed its first Number option. Root reproduced this with an exact browser value assertion (expected createdAt, actual number). Frontend067 bound each dynamic option's selected property to the current query, then strict template/lint/format checks passed. Root rebuilt Support and the real browser smoke passed initial createdAt, explicit number selection, Reset filters back to createdAt, paging, empty/reset and failure/Retry. The actual hosted harness now asserts the initial select value and complete reset of sort/page size alongside the emitted query. This is a product correction, not removal of the failing assertion. Exact final corrected-source hosted verification is still required.
+
+## Final exact-source hosted result
+
+[CI42241329658](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42241329658) actually completed successfully at d080a619a95a2ac67539f9a06c3cddd1dc96ccc6: PostgreSQL job127972065040 and full Windows job127973067912 both succeeded. This is ordinary CI on feature/large-ticket-query, not Package or Deploy. The earlier8c426 source also passed both jobs in42240575223; the final d080 result additionally covers the visible-sort correction and exact initial/reset assertions. No historical failure is relabelled as success.
+
+Final PostgreSQL log confirms legacy SQL8/8 and five HTTP/browser/same-storage restart groups, actual large SQL8/8, all bounded query/invalid-input/sort/date/filter assertions and three actual large Angular/HTTP/browser groups. Twenty browser query responses contained at most100 rows while the database retained exactly100000 tickets/100 organizations/40 agents. API-only stop/restart recovered via Retry. Independent review069 read the final raw database log/measurement and metadata rather than inferring success from an earlier source.
+
+Measurement conditions: Linux x64 GitHub runner, AMD EPYC7763, four logical CPUs,16760344576bytes RAM, Node24.21.0, PostgreSQL18.6. Each query scenario had five warm loopback HTTP samples; these are observations, not selected product thresholds or AWS forecasts.
+
+| Query scenario  | Median ms | Maximum ms |
+| --------------- | --------: | ---------: |
+| first-page      |    103.26 |     119.15 |
+| deep-page       |    124.34 |     125.04 |
+| last-page       |    134.93 |     136.02 |
+| subject-sort    |    106.01 |     106.33 |
+| combined-filter |      3.04 |       3.54 |
+| literal-search  |     96.46 |       96.9 |
+
+Initial browser render measured330.25ms. EXPLAIN ANALYZE of the actual emitted combined organization/status count/page statement recorded2.346ms execution; this SQL-only value differs from end-to-end HTTP timing. Source/run evidence: ignored .local/ci/large-d080a619a95a.json, .local/ci/job-127972065040.log and .local/evidence/large-hosted-d080a619a95a.json.
+
+Implementation/hosted verification is complete. Guided learner-local creation, migration/seed/grants and demonstration in the separate native large database remain pending. Keep current25-record database/services and cloud fixture demo intact. Root will hand off only the first explicit learner database-creation action; no agent knows the native administrator/owner/app passwords.
