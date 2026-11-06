@@ -44,9 +44,9 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci-postgres-owner-only
         ports:
-          - 5432/tcp
+          - '127.0.0.1:55432:5432'
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d platypus_service_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12

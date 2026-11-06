@@ -40,6 +40,23 @@ assert.equal(
   'Only the pinned test service image may be controlled.',
 );
 
+async function assertOwnedEndpoint() {
+  const current = JSON.parse(
+    (await execute('docker', ['inspect', containerId], { timeout: 10000 }))
+      .stdout,
+  );
+  assert.equal(current.length, 1);
+  assert.equal(current[0].Id, containerId);
+  assert.equal(current[0].Config.Image, image);
+  assert.equal(current[0].State.Running, true);
+  assert.deepEqual(
+    current[0].NetworkSettings.Ports['5432/tcp'],
+    [{ HostIp: '127.0.0.1', HostPort: process.env.PGPORT }],
+    'The same owned database endpoint must survive stop/start.',
+  );
+}
+await assertOwnedEndpoint();
+
 async function ownerQuery(sql, values) {
   const pool = new pg.Pool({
     connectionTimeoutMillis: 1000,
@@ -64,15 +81,19 @@ assert.equal(
 
 async function databaseReady() {
   const deadline = Date.now() + 30000;
+  let lastCode = 'UNAVAILABLE';
   while (Date.now() < deadline) {
     try {
       await ownerQuery('SELECT 1');
       return;
-    } catch {
+    } catch (error) {
+      if (/^[A-Z0-9_]{1,32}$/.test(error?.code ?? '')) lastCode = error.code;
       await new Promise((r) => setTimeout(r, 250));
     }
   }
-  throw new Error('Owned test database did not recover within its deadline.');
+  throw new Error(
+    'Owned test database did not recover within its deadline: ' + lastCode,
+  );
 }
 const portProbe = createServer();
 portProbe.listen(0, 'localhost');
@@ -239,6 +260,7 @@ try {
   );
   await execute('docker', ['start', containerId], { timeout: 20000 });
   stopped = false;
+  await assertOwnedEndpoint();
   await databaseReady();
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await page.getByText(subject, { exact: true }).waitFor();
