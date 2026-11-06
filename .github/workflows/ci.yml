@@ -54,14 +54,12 @@ jobs:
       CI: 'true'
       NG_CLI_ANALYTICS: 'false'
       PGHOST: 127.0.0.1
-      PGPORT: ${{ job.services.postgres.ports[5432] }}
       PGDATABASE: platypus_service_test
       PGUSER: postgres
       PGPASSWORD: ci-postgres-owner-only
       PG_TEST_APP_USER: platypus_app_test
       PG_TEST_APP_PASSWORD: ci-app-only
       PLATYPUS_PG_TEST_OWNED: '1'
-      PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
     steps:
       - name: Check out exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,12 +79,19 @@ jobs:
       - name: Build workspaces for real database browser integration
         run: npm run build
       - name: Prepare marked disposable database and separate runtime role
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/postgres-ci-setup.mjs
       - name: Verify actual migrations, seed, constraints and read-only runtime
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: npm run test:postgres:integration
       - name: Install browser in the temporary Linux runner
         run: npx playwright install --with-deps chromium
       - name: Verify persisted HTTP/browser data, actual database restart and Retry
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: npm run test:postgres:browser
 
   checks:
