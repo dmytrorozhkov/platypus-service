@@ -15,6 +15,114 @@
   <p class="su:mt-3 su:mb-7 su:text-sm su:leading-7 su:text-muted">
     A shared view of incoming support requests.
   </p>
+  @if (store.mode() === 'paged') {
+  <div
+    class="ticket-query-controls su:mb-5 su:rounded-panel su:border su:border-line su:bg-white su:p-5"
+  >
+    <form class="ticket-search" (submit)="search($event, searchInput.value)">
+      <label for="ticket-search">Search tickets</label>
+      <div class="ticket-search-row">
+        <input
+          #searchInput
+          id="ticket-search"
+          type="search"
+          maxlength="100"
+          [value]="store.query().search"
+          placeholder="Ticket number or subject"
+        />
+        <button type="submit">Search</button>
+        <button type="button" (click)="reset(searchInput)">
+          Reset filters
+        </button>
+      </div>
+    </form>
+    <div class="ticket-filter-grid">
+      <label
+        >Status
+        <select
+          [value]="store.query().status"
+          (change)="filter('status', $event)"
+        >
+          <option value="">All statuses</option>
+          @for (status of statuses; track status) {
+          <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </label>
+      <label
+        >Organization
+        <select
+          [value]="store.query().organization"
+          (change)="filter('organization', $event)"
+        >
+          <option value="">All organizations</option>
+          @for (organization of store.options().organizations; track
+          organization.id) {
+          <option [value]="organization.id">{{ organization.name }}</option>
+          }
+        </select>
+      </label>
+      <label
+        >Assignee
+        <select
+          [value]="store.query().assignee"
+          (change)="filter('assignee', $event)"
+        >
+          <option value="">All assignees</option>
+          <option value="unassigned">Unassigned</option>
+          @for (assignee of store.options().assignees; track assignee.id) {
+          <option [value]="assignee.id">{{ assignee.name }}</option>
+          }
+        </select>
+      </label>
+      <label
+        >Created from
+        <input
+          type="date"
+          [value]="store.query().createdFrom"
+          (change)="filter('createdFrom', $event)"
+        />
+      </label>
+      <label
+        >Created to
+        <input
+          type="date"
+          [value]="store.query().createdTo"
+          (change)="filter('createdTo', $event)"
+        />
+      </label>
+      <label
+        >Sort by
+        <select [value]="store.query().sort" (change)="filter('sort', $event)">
+          @for (sort of sorts; track sort.value) {
+          <option [value]="sort.value">{{ sort.label }}</option>
+          }
+        </select>
+      </label>
+      <label
+        >Sort direction
+        <select
+          [value]="store.query().direction"
+          (change)="filter('direction', $event)"
+        >
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
+        </select>
+      </label>
+      <label
+        >Rows per page
+        <select
+          [value]="store.query().pageSize"
+          (change)="filter('pageSize', $event)"
+        >
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  }
   <div
     class="su:rounded-panel su:border su:border-line su:bg-white su:shadow-panel"
   >
@@ -38,9 +146,13 @@
     </div>
     } @case ('ready') { @if (store.items().length === 0) {
     <div role="status" class="su:p-8">
-      <h2 class="su:mb-3 su:text-lg su:font-semibold">No tickets yet</h2>
+      <h2 class="su:mb-3 su:text-lg su:font-semibold">
+        {{ store.mode() === 'paged' ? 'No matching tickets' : 'No tickets yet'
+        }}
+      </h2>
       <p class="su:text-sm su:text-muted">
-        There are no support requests to display.
+        {{ store.mode() === 'paged' ? 'Adjust the filters or return to a
+        previous page.' : 'There are no support requests to display.' }}
       </p>
     </div>
     } @else {
@@ -49,7 +161,8 @@
     >
       <h2 class="su:m-0 su:text-sm su:font-semibold">Support requests</h2>
       <span class="su:text-xs su:text-muted"
-        >{{ store.items().length }} tickets</span
+        >{{ store.items().length }} {{ store.mode() === 'paged' ? 'loaded' :
+        'tickets' }}</span
       >
     </div>
     <div
@@ -105,8 +218,31 @@
     </div>
     } } }
   </div>
+  @if (store.mode() === 'paged' && store.status() === 'ready') {
+  <nav class="ticket-pagination" aria-label="Ticket pagination">
+    <p role="status" aria-live="polite">
+      {{ store.items().length }} loaded · {{ store.total() }} matching tickets
+    </p>
+    <div class="ticket-page-buttons">
+      <button
+        type="button"
+        (click)="store.goToPage(store.query().page - 1)"
+        [disabled]="store.query().page <= 1"
+      >
+        Previous page
+      </button>
+      <span>Page {{ store.query().page }} of {{ totalPages() }}</span>
+      <button
+        type="button"
+        (click)="store.goToPage(store.query().page + 1)"
+        [disabled]="store.query().page >= totalPages() || store.query().page >= 100000"
+      >
+        Next page
+      </button>
+    </div>
+  </nav>
+  }
   <p class="su:mt-5 su:text-xs su:leading-6 su:text-note">
-    Fictional learning data from the local server. Access controls follow in a
-    later stage.
+    Fictional learning data. Access controls follow in a later stage.
   </p>
 </section>

@@ -48,7 +48,14 @@ function fromFunctionUrl(event: unknown): TicketRequest | undefined {
       origin = value.trim();
     }
   }
-  return { method: method.toUpperCase(), pathname: event['rawPath'], origin };
+  const rawQuery = event['rawQueryString'];
+  if (rawQuery !== undefined && typeof rawQuery !== 'string') return undefined;
+  return {
+    method: method.toUpperCase(),
+    pathname: event['rawPath'],
+    origin,
+    rawQuery,
+  };
 }
 
 export function createLambdaHandler(options: TicketApplicationOptions) {

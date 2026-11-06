@@ -16,7 +16,7 @@
     "start": "node scripts/start-local.mjs",
     "build": "npm run build --workspace @platypus/server && npm run build --workspace @platypus/analytics && npm run build --workspace @platypus/administration && npm run build --workspace @platypus/support && npm run build --workspace @platypus/shell",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test:integration": "node --test scripts/integration.test.mjs",
+    "test:integration": "node --test scripts/integration.test.mjs apps/support/src/app/tickets/ticket-query.test.mjs",
     "serve:analytics": "node scripts/serve-local.mjs analytics",
     "serve:administration": "node scripts/serve-local.mjs administration",
     "preview": "node scripts/start-local.mjs --preview",
@@ -29,7 +29,7 @@
     "serve:support": "node scripts/serve-local.mjs support",
     "start:server": "npm run start --workspace @platypus/server",
     "test:server": "npm run build --workspace @platypus/server && npm run test --workspace @platypus/server",
-    "test:startup": "node --test scripts/workspace-processes.test.mjs",
+    "test:startup": "node --test scripts/workspace-processes.test.mjs scripts/large-runtime.test.mjs",
     "aws:prepare": "node scripts/aws/prepare.mjs",
     "aws:plan": "node scripts/aws/plan.mjs",
     "aws:preview": "node scripts/aws/preview.mjs",
@@ -42,7 +42,13 @@
     "db:seed": "npm run db:seed --workspace @platypus/server",
     "db:check": "npm run db:check --workspace @platypus/server",
     "test:postgres:integration": "npm run test:postgres:integration --workspace @platypus/server",
-    "test:postgres:browser": "node scripts/postgres-browser-check.mjs"
+    "test:postgres:browser": "node scripts/postgres-browser-check.mjs",
+    "db:large:migrate": "npm run db:large:migrate --workspace @platypus/server",
+    "db:large:seed": "npm run db:large:seed --workspace @platypus/server",
+    "db:large:check": "npm run db:large:check --workspace @platypus/server",
+    "test:large:integration": "npm run test:large:integration --workspace @platypus/server",
+    "test:large:browser": "node scripts/large-ticket-browser-check.mjs",
+    "serve:support:large": "node scripts/serve-local.mjs support-large"
   },
   "devDependencies": {
     "@aws/cloudformation-validate": "1.15.0",

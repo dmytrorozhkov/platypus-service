@@ -10,12 +10,16 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "start": "node dist/main.js",
-    "test": "node --test test/server.test.mjs test/lambda.test.mjs test/postgres-repository.test.mjs test/postgres-lifecycle.test.mjs test/postgres-data.test.mjs",
+    "test": "node --test test/server.test.mjs test/lambda.test.mjs test/postgres-repository.test.mjs test/postgres-lifecycle.test.mjs test/postgres-data.test.mjs test/large-data.test.mjs test/ticket-query.test.mjs",
     "start:postgres": "node dist/postgres-main.js",
     "db:migrate": "node database/migrate-seed.mjs migrate",
     "db:seed": "node database/migrate-seed.mjs seed",
     "db:check": "node database/migrate-seed.mjs check",
-    "test:postgres:integration": "node --test test/postgres-integration.test.mjs"
+    "test:postgres:integration": "node --test test/postgres-integration.test.mjs",
+    "db:large:migrate": "node database/large/cli.mjs migrate",
+    "db:large:seed": "node database/large/cli.mjs seed",
+    "db:large:check": "node database/large/cli.mjs check",
+    "test:large:integration": "node --test test/large-postgres-integration.test.mjs"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

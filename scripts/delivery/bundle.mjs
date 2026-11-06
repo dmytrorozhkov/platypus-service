@@ -28,6 +28,7 @@ const backendNames = [
   'lambda.js',
   'package.json',
   'ticket-application.js',
+  'ticket-query.js',
   'ticket-repository.js',
 ];
 const contextKeys = [
@@ -131,7 +132,7 @@ async function validateManifest(directory, expected) {
   assert.deepEqual(
     Object.keys(manifest.backend.files).sort(),
     backendNames,
-    'Expected exactly the five reviewed backend files.',
+    'Expected exactly the reviewed backend file inventory.',
   );
   const zip = manifest.objects.filter((item) => item.app === 'backend');
   assert.equal(zip.length, 1, 'Expected one backend ZIP.');

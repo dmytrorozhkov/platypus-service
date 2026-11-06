@@ -94,6 +94,23 @@ jobs:
           PG_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: npm run test:postgres:browser
 
+      - name: Prepare separate marked large database
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/large-postgres-ci-setup.mjs
+      - name: Verify real100000-row dataset and repeat-safe loading
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          PGDATABASE: platypus_service_large_test
+          PLATYPUS_LARGE_TEST_OWNED: '1'
+        run: npm run test:large:integration
+      - name: Verify real large HTTP/browser queries and record measurements
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          PGDATABASE: platypus_service_large_test
+          PLATYPUS_LARGE_TEST_OWNED: '1'
+        run: npm run test:large:browser
+
   checks:
     name: Checks and builds
     needs: postgres

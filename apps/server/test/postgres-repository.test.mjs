@@ -52,7 +52,10 @@ test('PostgreSQL adapter maps all authoritative examples to the unchanged public
     ticketListSql,
     /LEFT JOIN platypus\.support_agents AS a ON a\.id = t\.assignee_id/,
   );
-  assert.match(ticketListSql, /ORDER BY t\.created_at ASC, t\.number ASC$/);
+  assert.match(
+    ticketListSql,
+    /ORDER BY t\.created_at ASC, t\.number ASC\nLIMIT 101$/,
+  );
   assert(!ticketListSql.includes('SELECT *'));
   assert(actual.items.some((item) => item.assignee === null));
 });

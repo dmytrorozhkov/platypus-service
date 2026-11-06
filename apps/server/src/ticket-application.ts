@@ -1,4 +1,5 @@
 import type { TicketRepository } from './ticket-repository.js';
+import { InvalidTicketQuery, parseTicketQuery } from './ticket-query.js';
 
 export const defaultAllowedOrigins = [
   'http://localhost:4200',
@@ -9,6 +10,7 @@ export interface TicketRequest {
   method: string;
   pathname: string;
   origin?: string;
+  rawQuery?: string;
 }
 export interface TicketResponse {
   statusCode: number;
@@ -113,7 +115,17 @@ export function createTicketApplication({
         'ORIGIN_NOT_ALLOWED',
         'This browser origin is not allowed.',
       );
-    if (!['/api/health', '/api/tickets'].includes(pathname))
+    const queryPath =
+      pathname === '/api/tickets/query' &&
+      typeof repository.query === 'function';
+    const optionsPath =
+      pathname === '/api/tickets/options' &&
+      typeof repository.options === 'function';
+    if (
+      !['/api/health', '/api/tickets'].includes(pathname) &&
+      !queryPath &&
+      !optionsPath
+    )
       return error(404, 'NOT_FOUND', 'This endpoint does not exist.');
     if (method === 'OPTIONS')
       return respond(204, undefined, {
@@ -124,10 +136,21 @@ export function createTicketApplication({
         allow: 'GET, OPTIONS',
       });
     try {
+      if (queryPath)
+        return respond(
+          200,
+          await repository.query!(parseTicketQuery(request.rawQuery)),
+        );
+      if (optionsPath) {
+        if (request.rawQuery) throw new InvalidTicketQuery();
+        return respond(200, await repository.options!());
+      }
       return pathname === '/api/health'
         ? respond(200, { status: 'ok' })
         : respond(200, await repository.list());
     } catch (failure) {
+      if (failure instanceof InvalidTicketQuery)
+        return error(400, 'INVALID_REQUEST', 'The ticket query is invalid.');
       logError(failure);
       return error(500, 'INTERNAL_ERROR', 'Tickets could not be loaded.');
     }

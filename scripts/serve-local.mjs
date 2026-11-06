@@ -11,6 +11,15 @@ const applications = {
     port: 5175,
     fallback: true,
   },
+  'support-large': {
+    root: 'apps/support/dist/browser',
+    port: 5176,
+    fallback: true,
+    ticketApiConfig: {
+      apiBaseUrl: 'http://localhost:3001',
+      ticketQueryMode: 'paged',
+    },
+  },
   shell: { root: 'apps/shell/dist/browser', port: 4200, fallback: true },
   analytics: {
     root: 'apps/analytics/dist/remote',
@@ -38,7 +47,11 @@ const contentTypes = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-export async function createStaticServer({ root, fallback = false }) {
+export async function createStaticServer({
+  root,
+  fallback = false,
+  ticketApiConfig,
+}) {
   const canonicalRoot = await realpath(root);
   function insideRoot(candidate) {
     return (
@@ -84,6 +97,15 @@ export async function createStaticServer({ root, fallback = false }) {
         response.writeHead(400).end('Invalid path.');
         return;
       }
+      if (ticketApiConfig && pathname === '/ticket-api-config.json') {
+        const body = Buffer.from(JSON.stringify(ticketApiConfig));
+        response.setHeader('Content-Type', 'application/json; charset=utf-8');
+        response.setHeader('Content-Length', body.length);
+        response
+          .writeHead(200)
+          .end(request.method === 'HEAD' ? undefined : body);
+        return;
+      }
       let candidate = path.resolve(canonicalRoot, '.' + pathname);
       if (!insideRoot(candidate)) {
         response.writeHead(403).end('Forbidden.');
@@ -127,11 +149,12 @@ export async function startApplication(name) {
   const configuration = applications[name];
   if (!configuration)
     throw new Error(
-      'Choose shell, analytics, administration, support, or support-standalone.',
+      'Choose shell, analytics, administration, support, support-standalone, or support-large.',
     );
   const server = await createStaticServer({
     root: path.join(projectRoot, configuration.root),
     fallback: configuration.fallback,
+    ticketApiConfig: configuration.ticketApiConfig,
   });
   await new Promise((resolve, reject) => {
     server.once('error', reject);

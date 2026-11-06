@@ -131,6 +131,7 @@ async function fixture(t, label = 'candidate') {
   for (const [name, body] of [
     ['lambda.js', 'export async function handler() {}\n'],
     ['ticket-application.js', 'export {};\n'],
+    ['ticket-query.js', 'export {};\n'],
     ['ticket-repository.js', 'export {};\n'],
     ['fixtures/tickets.json', '[]\n'],
     ['package.json', json({ private: true, type: 'module' })],
