@@ -353,7 +353,7 @@ try {
       );
   });
   async function change(action, match) {
-    const response = page.waitForResponse((response) => {
+    const responsePromise = page.waitForResponse((response) => {
       if (!response.url().startsWith(apiOrigin + '/api/tickets/query'))
         return false;
       const params = new URL(response.url()).searchParams;
@@ -361,8 +361,8 @@ try {
         ([key, value]) => (params.get(key) ?? '') === String(value),
       );
     });
-    await action();
-    const data = await (await response).json();
+    const [response] = await Promise.all([responsePromise, action()]);
+    const data = await response.json();
     await expect(page.locator('.ps-support tbody tr')).toHaveCount(
       data.items.length,
     );

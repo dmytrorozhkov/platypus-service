@@ -40,6 +40,7 @@
       <label
         >Status
         <select
+          aria-label="Status"
           [value]="store.query().status"
           (change)="filter('status', $event)"
         >
@@ -52,6 +53,7 @@
       <label
         >Organization
         <select
+          aria-label="Organization"
           [value]="store.query().organization"
           (change)="filter('organization', $event)"
         >
@@ -65,6 +67,7 @@
       <label
         >Assignee
         <select
+          aria-label="Assignee"
           [value]="store.query().assignee"
           (change)="filter('assignee', $event)"
         >
@@ -93,7 +96,11 @@
       </label>
       <label
         >Sort by
-        <select [value]="store.query().sort" (change)="filter('sort', $event)">
+        <select
+          aria-label="Sort by"
+          [value]="store.query().sort"
+          (change)="filter('sort', $event)"
+        >
           @for (sort of sorts; track sort.value) {
           <option [value]="sort.value">{{ sort.label }}</option>
           }
@@ -102,6 +109,7 @@
       <label
         >Sort direction
         <select
+          aria-label="Sort direction"
           [value]="store.query().direction"
           (change)="filter('direction', $event)"
         >
@@ -112,6 +120,7 @@
       <label
         >Rows per page
         <select
+          aria-label="Rows per page"
           [value]="store.query().pageSize"
           (change)="filter('pageSize', $event)"
         >

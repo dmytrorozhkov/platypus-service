@@ -31,3 +31,7 @@ The retained Node tests compile owned TypeScript in memory and use actual instal
 ## Remaining verification
 
 Root owns shared builds and browser/real100000-row integration, the frontend-only support-large5176 runtime override and API3001 setup, full regression checks and independent review069. Browser acceptance must confirm the actual native controls and submitted requests, all seven sorts/filters, bounded25/50/100 rows, filtered totals, empty/error/Retry recovery and unchanged legacy/federated behavior. No browser session or native database operation was performed by this author. No cloud, Package/Deploy/CodeBuild, Git, secret, settings, service or shared configuration change was performed.
+
+## Integration correction — stable accessible select names
+
+The coordinator's actual built-UI smoke reached the first paged table and page2, then its exact Rows per page label lookup timed out because the wrapping label included option text. All six select controls now have explicit stable aria-label names matching their visible labels; the visible wrapping labels remain. This corrects the discovered accessibility/automation boundary. Focused template ESLint and strict ngc --noEmit checks passed on the corrected source; no full browser pass is claimed by this correction. Root owns rebuilding Support and rerunning browser/hosted acceptance.
