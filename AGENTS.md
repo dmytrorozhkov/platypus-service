@@ -49,6 +49,7 @@
 - November7 initial-password input recovery088-089: user explicitly confirmed newappPW<20characters after genericsetupfailure+failedpooledcheck. Existing lengthguard runs beforechild, so setup did notattemptremoteSQL. Only fixedlocalinputdiagnostics+ownedfaketests changed; no realcredential/coreSQL/TLS/grant/data/servicechange. See083/088/089. Actualvalidpasswordsetup/appcheckstillpending; never infer liveconnection fromlocaltests.
 - November7 hosted inputdiagnostics138bca8: actualordinaryCI42381749299 bothjobsPASS,114servergroups; local114/lint/format and independent4focusedPASS. Learner-confirmed<20inputstoppedbeforechild; correctedhiddenpromptcommandreadyforprivate32charappPWthenpooledcheck. No actualPWset/appauthconfirmed; no agentNeon/AWSoperation. Read083/088/089.
 - November7 actual app connection: learner correctedpasswordsetup returned passwordConfigured:true forplatypus_app/neondb; separate pooledneon-runtimecheck returned Neon connection check passed. Actual learnercredential/TLS/identity/effectiveSELECTprobe confirmed, not HTTP/UI/wake/performance. No privatevalue shared. Next learner serveAPI3002 thenSupport5177. Read083latest; preserveexistingdata/services/main/AWS, useronlypublication.
+- November7 learnerUIacceptance: afterguidedNeonAPI3002/Support5177 startup, screenshotshowsNewrows/25loaded; learnerconfirmedtablepaginationworks. ActualappcheckalreadyPASS. Do notclaimfooter25000/100000 fromcroppedscreenshot; fullimportcountsverifiedearlier. Nextboundedcheckidle/wake/latency/usage; noAWSpublication. Read083latest.
 - Start implementing a stage after the user's explicit approval. Once approved, perform routine technical work within the stage autonomously, subject to the environment's actual permissions, without requesting approval for every routine action.
 - Discuss substantial changes to agreed requirements and services that may create new charges separately. Approval of the AWS architecture does not authorize spending.
 - Do not modify other projects, including D:/Projects/node-js. Preserve existing user changes.
@@ -56,7 +57,7 @@
 ## Language and communication
 
 - Write all repository content in English: documentation, plans, agent instructions, skills, code comments, logs, interface text, examples, fixtures, knowledge base articles, sample tickets, AI assistant responses, and written project reports.
-- Keep direct conversation with the user in Russian, using simple language and small steps. Explain new terms when first introduced. Discuss planning decisions in Russian and record them in English.
+- Keep direct conversation with the user in Russian, using simple language and small steps. When a console command needs subsequent input, provide the command and all prompts/values in step order in the same response; passwords are described by role and entered privately, never supplied in chat. Explain new terms when first introduced. Discuss planning decisions in Russian and record them in English.
 - Agents write the code. The user defines the scenario, approves a stage, and accepts its result after an explanation and demonstration.
 - Report significant findings and problems. Distinguish prepared plans, written code, and behavior that has actually been verified.
 
