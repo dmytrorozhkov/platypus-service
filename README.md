@@ -244,9 +244,28 @@ Checks include real server responses, controlled empty/internal failures, explic
 
 The opt-in large mode is implemented and verified against a real disposable100000-ticket PostgreSQL database in [CI42241329658](https://github.com/dmytrorozhkov/platypus-service/actions/runs/42241329658). It provides server-side search, status/organization/assignee/date filters, seven sort fields and25/50/100-row pages; Angular requests only the selected page. See [integration report068](docs/implementation/068-large-ticket-integration.md) and [independent review069](docs/reviews/069-large-ticket-review.md) for evidence, measured conditions, fixes and boundaries.
 
-A separate learner-owned native database platypus_service_large is required; its creation and visible acceptance remain pending. Keep the existing platypus_service25-record database intact. Use the hidden-password scripts/postgres-local.ps1 wrapper with exactly one explicit migrate-large, seed-large, check-large or serve-large action after guided setup; serve-large targets localhost:3001 as platypus_app. In another terminal, npm.cmd run serve:support:large serves the paged frontend at http://localhost:5176/. No credentials are stored in tracked files.
+The learner created and verified the separate native platypus_service_large database and confirmed the large table works; [native demonstration070](docs/implementation/070-native-large-demonstration.md) records screenshots and independent local HTTP readback. Keep the existing platypus_service25-record database intact. Use the hidden-password scripts/postgres-local.ps1 wrapper with exactly one explicit migrate-large, seed-large, check-large or serve-large action after guided setup; serve-large targets localhost:3001 as platypus_app. In another terminal, npm.cmd run serve:support:large serves the paged frontend at http://localhost:5176/. No credentials are stored in tracked files.
 
 The ordinary npm start and public AWS application still use the25-record fixture demo. Large-mode preparation neither publishes the new endpoints nor creates a cloud database. Authentication, server-enforced access, writes, remaining column interactions, hosting and costs are later separately scoped work.
+
+## Manual local-to-Neon migration preparation
+
+The reviewed preparation targets the actual current three-table dataset, preserving edits and identities instead of regenerating fixtures. Separate manual export, offline inspect, confirmed direct-Neon import and read-only verify actions are documented in [runbook079](docs/implementation/079-neon-migration-runbook.md). Read it before running any command. Source data, passwords and snapshots never belong in Git or chat. Real learner-data export/import and application publication have not been performed. See [contract076](docs/architecture/076-neon-migration-contract.md) and [review080](docs/reviews/080-neon-migration-review.md).
+
+## Neon connection preparation — offline only
+
+Step1 adds an opt-in importable Node.js connection adapter; no command, local server or public Lambda uses it automatically. The existing local PostgreSQL guards and fixture application stay in place. The learner's native100000-ticket database size query returned54MB overall and46MB for tickets including indexes; these rounded physical sizes are not live Neon metering. Hosting, a Neon project, migrations and user-started publication remain separate stages.
+
+The adapter requires explicit NEON_HOST, NEON_DATABASE, NEON_USER and NEON_PASSWORD supplied privately by future server-side integration. It accepts only a validated AWS Neon pooled hostname, fixes TLS certificate/hostname verification and bounds pool/deadline/cleanup behavior. Do not put real values in this README, tracked files, public configuration, command arguments, logs or chat. Local PG settings never select Neon.
+
+Build and exercise the offline tests without database credentials:
+
+```powershell
+npm.cmd run build --workspace @platypus/server
+node --test apps/server/test/neon-connection.test.mjs
+```
+
+These tests use controlled failures and owned loopback fixtures; they do not prove an actual Neon sleep/wake, quota fit or cloud connection. See [scope073](docs/architecture/073-neon-connection-contract.md), [implementation074](docs/implementation/074-neon-connection.md) and [review075](docs/reviews/075-neon-connection-review.md). Never send a real connection string/password to the coding agents.
 
 ## Manual AWS delivery — prepared, disabled
 

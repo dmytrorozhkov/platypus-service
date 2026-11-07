@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "start": "node dist/main.js",
-    "test": "node --test test/server.test.mjs test/lambda.test.mjs test/postgres-repository.test.mjs test/postgres-lifecycle.test.mjs test/postgres-data.test.mjs test/large-data.test.mjs test/ticket-query.test.mjs",
+    "test": "node --test test/server.test.mjs test/lambda.test.mjs test/postgres-repository.test.mjs test/postgres-lifecycle.test.mjs test/postgres-data.test.mjs test/large-data.test.mjs test/ticket-query.test.mjs test/neon-connection.test.mjs test/neon-snapshot.test.mjs test/neon-transfer.test.mjs test/neon-migration-runner.test.mjs",
     "start:postgres": "node dist/postgres-main.js",
     "db:migrate": "node database/migrate-seed.mjs migrate",
     "db:seed": "node database/migrate-seed.mjs seed",
