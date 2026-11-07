@@ -49,7 +49,9 @@
     "test:large:integration": "npm run test:large:integration --workspace @platypus/server",
     "test:large:browser": "node scripts/large-ticket-browser-check.mjs",
     "serve:support:large": "node scripts/serve-local.mjs support-large",
-    "test:neon:migration:integration": "node scripts/neon-migration-integration.mjs"
+    "test:neon:migration:integration": "node scripts/neon-migration-integration.mjs",
+    "serve:support:neon": "node scripts/serve-local.mjs support-neon",
+    "test:neon:runtime:integration": "node scripts/neon-runtime-integration.mjs"
   },
   "devDependencies": {
     "@aws/cloudformation-validate": "1.15.0",

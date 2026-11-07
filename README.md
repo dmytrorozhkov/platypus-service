@@ -248,6 +248,10 @@ The learner created and verified the separate native platypus_service_large data
 
 The ordinary npm start and public AWS application still use the25-record fixture demo. Large-mode preparation neither publishes the new endpoints nor creates a cloud database. Authentication, server-enforced access, writes, remaining column interactions, hosting and costs are later separately scoped work.
 
+## Local backend against Neon
+
+The explicit check/serve runtime and isolated Support mode are described in [connection progress083](docs/implementation/083-neon-connection-progress.md), [backend082](docs/implementation/082-neon-local-backend.md) and [review084](docs/reviews/084-neon-live-connection-review.md). After the learner-run import/verification and limited-role setup, use scripts/neon-runtime.ps1 with check or serve. The private launcher confirms the pooled target and requests the app password locally; API3002/UI5177 leave existing local modes unchanged. This is local integration, not AWS publication. Actual migration/connection results are recorded only after the learner's private steps complete.
+
 ## Manual local-to-Neon migration preparation
 
 The reviewed preparation targets the actual current three-table dataset, preserving edits and identities instead of regenerating fixtures. Separate manual export, offline inspect, confirmed direct-Neon import and read-only verify actions are documented in [runbook079](docs/implementation/079-neon-migration-runbook.md). Read it before running any command. Source data, passwords and snapshots never belong in Git or chat. Real learner-data export/import and application publication have not been performed. See [contract076](docs/architecture/076-neon-migration-contract.md) and [review080](docs/reviews/080-neon-migration-review.md).

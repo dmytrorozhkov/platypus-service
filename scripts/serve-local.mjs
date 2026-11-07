@@ -20,6 +20,15 @@ const applications = {
       ticketQueryMode: 'paged',
     },
   },
+  'support-neon': {
+    root: 'apps/support/dist/browser',
+    port: 5177,
+    fallback: true,
+    ticketApiConfig: {
+      apiBaseUrl: 'http://localhost:3002',
+      ticketQueryMode: 'paged',
+    },
+  },
   shell: { root: 'apps/shell/dist/browser', port: 4200, fallback: true },
   analytics: {
     root: 'apps/analytics/dist/remote',
@@ -149,7 +158,7 @@ export async function startApplication(name) {
   const configuration = applications[name];
   if (!configuration)
     throw new Error(
-      'Choose shell, analytics, administration, support, support-standalone, or support-large.',
+      'Choose shell, analytics, administration, support, support-standalone, support-large, or support-neon.',
     );
   const server = await createStaticServer({
     root: path.join(projectRoot, configuration.root),
