@@ -97,6 +97,14 @@ On November7 the learner supplied the terminal receipt for the separate operatio
 
 The actual data-transfer/verification part is now confirmed by learner receipts. The next approved learner action is runtime-role.sql in the intended Neon project/production/neondb SQL Editor as neondb_owner, creating the restricted NOLOGIN platypus_app. Then private password reset of that existing role, guarded LOGIN activation and actual pooled app-role backend check/serve/browser evidence follow. No restricted role creation, password/login action or application connection is yet confirmed. AWS publication and application-level authentication remain separate.
 
+## Actual restricted role and operator-order correction
+
+The learner executed runtime-role.sql in production/neondb; the SQL Editor displayed all seven statements including CREATE/GRANT/COMMIT. A subsequent read-only catalog query independently showed current_database=neondb, current_user=neondb_owner, rolname=platypus_app, rolcanlogin=false. Thus role creation and NOLOGIN are confirmed by learner SQL evidence. The Roles UI screenshot showed only neondb_owner; the reason for this omission is not established. Do not treat the missing UI entry as proof that the PostgreSQL role is absent or recreate it as an administrative Console role.
+
+The initial UI password-reset-before-LOGIN instructions are currently unusable for this actual role. The bounded next operator step is to run the existing reviewed activate-runtime-role.sql as the learner in the same database/branch. Its effective-role guards remain unchanged and must pass before LOGIN is enabled. Then inspect a refreshed Roles page for the existing role's private password reset. Do not guarantee that LOGIN makes the UI entry appear; if still missing, pause the password-dependent operation and prepare a suitable private route instead. This is only an operator-order adjustment within the approved local backend/access stage, not extra grants or an agent-run remote operation. The password remains unset/unconfirmed and no backend connection is claimed.
+
+[PostgreSQL18 CREATE ROLE](https://www.postgresql.org/docs/18/sql-createrole.html) specifies that an omitted password is null and password authentication fails for a null password. The original role creation omitted PASSWORD. LOGIN alone does not supply a password; neither passwordless remote access nor a runtime cutover is implied by the next action. Never put a new password in SQL Editor history or chat. Full app-role identity/privilege probing still precedes HTTP startup.
+
 ## Source
 
 [Neon role management](https://neon.com/docs/manage/roles) distinguishes restricted SQL-created roles from default Console-created administrative roles, describes existing-role password reset and LOGIN/NOLOGIN. Current live behavior still requires verification with the learner's actual project and private credentials.
