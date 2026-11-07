@@ -198,7 +198,57 @@ async function ownedFixture(t, { forceFailure = false } = {}) {
   return { directory, script };
 }
 
-async function run(script, directory, input) {
+const runtimePrompts = [
+  {
+    prompt: 'Pooled Neon Frankfurt hostname only (contains -pooler, no URL)',
+    secure: false,
+  },
+  {
+    prompt: 'Confirm by typing the complete hostname/neondb shown above',
+    secure: false,
+  },
+  {
+    prompt:
+      'Private NEON password for platypus_app (not the local password or owner password)',
+    secure: true,
+  },
+];
+
+function ownedPromptQueueCommand(input, prompts) {
+  const literal = (value) => "'" + value.replaceAll("'", "''") + "'";
+  const answers = input.replaceAll('\r\n', '\n').split('\n');
+  if (answers.at(-1) === '') answers.pop();
+  const expected = prompts
+    .map(
+      ({ prompt, secure }) =>
+        `@{Prompt=${literal(prompt)}; Secure=$${secure ? 'true' : 'false'}}`,
+    )
+    .join(',');
+  // These literals are public fake fixtures, never real credentials. The mock does
+  // not depend on redirected Console.In or ConvertTo-SecureString/module loading.
+  // Its closure and queue exist only inside the exclusively owned test process.
+  return (
+    `$fixtureState = @{ Index=0; Expected=@(${expected}); Answers=[System.Collections.Generic.Queue[string]]::new() }; ` +
+    answers
+      .map((answer) => `$fixtureState.Answers.Enqueue(${literal(answer)}); `)
+      .join('') +
+    `Set-Item -Path Function:Read-Host -Value ({ param([string]$Prompt,[switch]$AsSecureString) ` +
+    `if ($fixtureState.Index -ge $fixtureState.Expected.Count) { throw 'Owned fixture prompt sequence exhausted.' }; ` +
+    `$expectedPrompt=$fixtureState.Expected[$fixtureState.Index]; ` +
+    `if ($Prompt -cne $expectedPrompt.Prompt -or [bool]$AsSecureString -ne $expectedPrompt.Secure) { throw 'Owned fixture prompt order or mode differs.' }; ` +
+    `if ($fixtureState.Answers.Count -eq 0) { throw 'Owned fixture answer queue exhausted.' }; ` +
+    `$fixtureState.Index++; $answer=$fixtureState.Answers.Dequeue(); ` +
+    `if ($AsSecureString) { $secure=[System.Security.SecureString]::new(); foreach($character in $answer.ToCharArray()) { $secure.AppendChar($character) }; $secure.MakeReadOnly(); return $secure }; return $answer ` +
+    `}.GetNewClosure()); `
+  );
+}
+
+async function run(
+  script,
+  directory,
+  input,
+  { prompts = runtimePrompts } = {},
+) {
   const child = spawn(
     'powershell.exe',
     [
@@ -206,9 +256,10 @@ async function run(script, directory, input) {
       '-ExecutionPolicy',
       'Bypass',
       '-Command',
-      // Secure Read-Host requires an interactive console. Only the owned test process
-      // substitutes prompt reads; the real wrapper/secure-string/child path executes.
-      "function Read-Host { param([string]$Prompt,[switch]$AsSecureString) $answer=[Console]::In.ReadLine(); if($AsSecureString){ConvertTo-SecureString -String $answer -AsPlainText -Force}else{$answer} }; & '" +
+      // The interactive prompt driver is deliberately substituted. The real copied
+      // wrapper still marshals/disposes a SecureString and passes child-only fields.
+      ownedPromptQueueCommand(input, prompts) +
+        "& '" +
         script.replaceAll("'", "''") +
         "' -Action check",
     ],
@@ -234,7 +285,7 @@ async function run(script, directory, input) {
     stderr += chunk;
   });
   child.stdin.on('error', () => {});
-  child.stdin.end(input);
+  child.stdin.end();
   const timeout = setTimeout(() => {
     if (!closed)
       execute('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
@@ -284,6 +335,58 @@ test(
     assert(!result.stdout.includes('Owned-Password-Sentinel'));
     assert(!result.stderr.includes('Sentinel'));
     assert(!result.stdout.includes('Ambient-Password-Sentinel'));
+  },
+);
+
+test(
+  'owned prompt queue refuses exhausted answers, unexpected prompt, wrong order and insecure password mode',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const host = 'ep-owned-example-pooler.eu-central-1.aws.neon.tech';
+    const validInput = `${host}\n${host}/neondb\nOwned-Password-Sentinel\n`;
+    for (const scenario of [
+      {
+        input: `${host}\n${host}/neondb\n`,
+        prompts: runtimePrompts,
+        stage: 'prompt_password',
+      },
+      {
+        input: validInput,
+        prompts: [
+          { ...runtimePrompts[0], prompt: 'Unexpected fixture prompt' },
+          ...runtimePrompts.slice(1),
+        ],
+        stage: 'prompt_host',
+      },
+      {
+        input: validInput,
+        prompts: [runtimePrompts[1], runtimePrompts[0], runtimePrompts[2]],
+        stage: 'prompt_host',
+      },
+      {
+        input: validInput,
+        prompts: [
+          ...runtimePrompts.slice(0, 2),
+          { ...runtimePrompts[2], secure: false },
+        ],
+        stage: 'prompt_password',
+      },
+    ]) {
+      const { directory, script } = await ownedFixture(t);
+      const result = await run(script, directory, scenario.input, {
+        prompts: scenario.prompts,
+      });
+      assert.equal(result.code, 1);
+      assert(safeDiagnostic(result).startsWith(`stage=${scenario.stage} `));
+      assert(!result.stdout.includes('Neon connection check passed.'));
+      assert(!result.stdout.includes('Owned-Password-Sentinel'));
+      assert(!result.stdout.includes('Ambient-Password-Sentinel'));
+      assert(!result.stderr.includes('Sentinel'));
+      assert(!result.stdout.includes('Owned fixture answer queue exhausted.'));
+      assert(
+        !result.stdout.includes('Owned fixture prompt order or mode differs.'),
+      );
+    }
   },
 );
 
