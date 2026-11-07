@@ -126,3 +126,9 @@ Author10/10unit groups and coordinator3/3real Windows PowerShell fake-child grou
 ## Source
 
 [Neon role management](https://neon.com/docs/manage/roles) distinguishes restricted SQL-created roles from default Console-created administrative roles, describes existing-role password reset and LOGIN/NOLOGIN. Current live behavior still requires verification with the learner's actual project and private credentials.
+
+## Hosted verification of the initial-password command
+
+On November 7, 2026, reviewed initial-password implementation f3ec41d0b6e280bdfe21cde6d53960bfc2e522f5 was saved and pushed on feature/neon-connection. Its actual ordinary GitHub CI run 42380207600 succeeded: Real PostgreSQL integration job 128426040474 and Windows Checks and builds job 128426435047 both passed. The Windows run includes all 113 registered server tests, lint, formatting, types, all builds, frontend integration/startup and offline package/delivery checks. Package creation/upload was skipped for this ordinary push. This is hosted preparation evidence, not real Neon password setup, app authentication or AWS publication.
+
+The next learner-only action is scripts/neon-role-password.ps1 in the existing checkout, using the confirmed direct target and hidden existing owner/new app/repeat prompts. Save the new app password privately. Expect the fixed passwordConfigured:true receipt, then run the existing pooled app connection check with that password. Actual password setup and app connectivity remain pending; do not infer them from CI.
