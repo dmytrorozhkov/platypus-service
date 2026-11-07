@@ -51,6 +51,7 @@ async function fixture(t) {
     `
     import assert from 'node:assert/strict';
     import {writeFile} from 'node:fs/promises';
+    await writeFile('owned-child-started.txt', 'owned fake only');
     assert.deepEqual(process.argv.slice(2), ['set']);
     assert.equal(process.env.NEON_MIGRATION_HOST, ${JSON.stringify(host)});
     assert.equal(process.env.NEON_MIGRATION_CONFIRM_TARGET, ${JSON.stringify(host + '/neondb')});
@@ -60,7 +61,6 @@ async function fixture(t) {
     assert.equal(process.env.PGPASSWORD, undefined);
     assert(!process.argv.join(' ').includes(${JSON.stringify(owner)}));
     assert(!process.argv.join(' ').includes(${JSON.stringify(app)}));
-    await writeFile('owned-child-started.txt', 'owned fake only');
     if(process.env.OWNED_PASSWORD_TEST_MODE==='leak') console.log(process.env.NEON_APP_NEW_PASSWORD);
     else if(process.env.OWNED_PASSWORD_TEST_MODE==='stderr') console.error(process.env.NEON_MIGRATION_PASSWORD);
     else if(process.env.OWNED_PASSWORD_TEST_MODE==='wrong') console.log(JSON.stringify({...${JSON.stringify(receipt)},extra:process.env.NEON_APP_NEW_PASSWORD}));
@@ -143,6 +143,7 @@ async function run(
       'Ambient-App-Sentinel',
       'Ambient-Legacy-Sentinel',
       'Ambient-PG-Sentinel',
+      ...values.slice(2).filter((value) => value.length > 0),
     ]) {
       assert(
         !stdout.includes(secret),
@@ -194,6 +195,81 @@ test(
 );
 
 test(
+  'private role-password runner explains local input refusal with fixed codes before any child or remote attempt',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const short = 'Private-Short-Only';
+    const long = 'Private-Long-Only-' + 'X'.repeat(128);
+    const unicode = 'Private-Unicode-Only-é-1234567890';
+    const control = 'Private-Control-Only-\t-1234567890';
+    const confirmation = 'Private-Different-Confirmation-Only';
+    for (const { values, diagnostic } of [
+      {
+        values: [host, host + '/neondb', '', app, app],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_OWNER_EMPTY] The owner password must not be empty.',
+      },
+      {
+        values: [host, host + '/neondb', owner, '', ''],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_LENGTH] The new app password must contain 20-128 characters.',
+      },
+      {
+        values: [host, host + '/neondb', owner, short, short],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_LENGTH] The new app password must contain 20-128 characters.',
+      },
+      {
+        values: [host, host + '/neondb', owner, long, long],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_LENGTH] The new app password must contain 20-128 characters.',
+      },
+      {
+        values: [host, host + '/neondb', owner, app, confirmation],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_CONFIRMATION] The repeated app password must match exactly.',
+      },
+      {
+        values: [host, host + '/neondb', owner, app, 'X'.repeat(app.length)],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_CONFIRMATION] The repeated app password must match exactly.',
+      },
+      {
+        values: [host, host + '/neondb', owner, unicode, unicode],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_ASCII] The new app password must use printable ASCII characters only.',
+      },
+      {
+        values: [host, host + '/neondb', owner, control, control],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_APP_ASCII] The new app password must use printable ASCII characters only.',
+      },
+      {
+        values: [host, host + '/neondb', owner, owner, owner],
+        diagnostic:
+          '[NEON_PASSWORD_INPUT_OWNER_REUSE] The app password must differ from the owner password.',
+      },
+    ]) {
+      const owned = await fixture(t);
+      const result = await run(owned, { values });
+      assert.equal(result.code, 1);
+      assert.equal(result.stderr, '');
+      const lines = result.stdout.trim().split(/\r?\n/);
+      assert.deepEqual(lines, [
+        `Set only the existing platypus_app password at ${host}/neondb using neondb_owner.`,
+        diagnostic,
+        'No child process was started; no remote password operation was attempted.',
+      ]);
+      assert(!result.stdout.includes('passwordConfigured'));
+      assert(!result.stdout.includes('Run the app connection check'));
+      await assert.rejects(
+        access(path.join(owned.directory, 'owned-child-started.txt')),
+      );
+    }
+  },
+);
+
+test(
   'private role-password runner refuses mismatched confirmation and pooled targets before child execution',
   { skip: process.platform !== 'win32' },
   async (t) => {
@@ -228,6 +304,20 @@ test(
       assert.equal(result.code, 1);
       assert(!result.stdout.includes('"passwordConfigured":true'));
       assert(result.stdout.includes('setup was not confirmed'));
+      assert(result.stdout.includes('[NEON_PASSWORD_RESULT_UNCONFIRMED]'));
+      assert(
+        result.stdout.includes(
+          'Run the app connection check with the new password before explicitly retrying.',
+        ),
+      );
+      assert(!result.stdout.includes('No child process was started'));
+      assert.equal(
+        await readFile(
+          path.join(owned.directory, 'owned-child-started.txt'),
+          'utf8',
+        ),
+        'owned fake only',
+      );
     }
   },
 );

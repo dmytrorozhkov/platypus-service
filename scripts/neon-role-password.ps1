@@ -9,6 +9,9 @@ $privateValues = @()
 $pointers = @()
 $newValue = $null
 $repeatValue = $null
+$ownerValue = $null
+$localRefusal = $null
+$childStartAttempted = $false
 $privateNames = @('NEON_MIGRATION_HOST', 'NEON_MIGRATION_CONFIRM_TARGET', 'NEON_MIGRATION_PASSWORD', 'NEON_APP_NEW_PASSWORD', 'NEON_HOST', 'NEON_USER', 'NEON_DATABASE', 'NEON_PASSWORD', 'PGPASSWORD', 'LOCAL_MIGRATION_PASSWORD')
 try {
   $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).ProviderPath
@@ -37,14 +40,21 @@ try {
   $privateValues += Read-Host -Prompt 'Private existing Neon neondb_owner password' -AsSecureString
   $privateValues += Read-Host -Prompt 'NEW private platypus_app password (20-128 printable ASCII characters; use a random 32-character password)' -AsSecureString
   $privateValues += Read-Host -Prompt 'Repeat the NEW private platypus_app password' -AsSecureString
-  if ($privateValues[0].Length -eq 0 -or $privateValues[1].Length -lt 20 -or $privateValues[1].Length -gt 128 -or $privateValues[2].Length -ne $privateValues[1].Length) { throw 'Unsupported private input.' }
+  if ($privateValues[0].Length -eq 0) { $localRefusal = 'OWNER_EMPTY'; throw 'Local private input refused.' }
+  if ($privateValues[1].Length -lt 20 -or $privateValues[1].Length -gt 128) { $localRefusal = 'APP_LENGTH'; throw 'Local private input refused.' }
+  if ($privateValues[2].Length -ne $privateValues[1].Length) { $localRefusal = 'APP_CONFIRMATION'; throw 'Local private input refused.' }
   foreach ($value in $privateValues) { $pointers += [Runtime.InteropServices.Marshal]::SecureStringToBSTR($value) }
   $newValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointers[1])
   $repeatValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointers[2])
-  if (![string]::Equals($newValue, $repeatValue, [StringComparison]::Ordinal)) { throw 'Private confirmation differs.' }
-  $startInfo.EnvironmentVariables['NEON_MIGRATION_PASSWORD'] = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointers[0])
+  if (![string]::Equals($newValue, $repeatValue, [StringComparison]::Ordinal)) { $localRefusal = 'APP_CONFIRMATION'; throw 'Local private input refused.' }
+  foreach ($character in $newValue.ToCharArray()) {
+    if ([int]$character -lt 32 -or [int]$character -gt 126) { $localRefusal = 'APP_ASCII'; throw 'Local private input refused.' }
+  }
+  $ownerValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointers[0])
+  if ([string]::Equals($newValue, $ownerValue, [StringComparison]::Ordinal)) { $localRefusal = 'OWNER_REUSE'; throw 'Local private input refused.' }
+  $startInfo.EnvironmentVariables['NEON_MIGRATION_PASSWORD'] = $ownerValue
   $startInfo.EnvironmentVariables['NEON_APP_NEW_PASSWORD'] = $newValue
-  try { $child = [Diagnostics.Process]::Start($startInfo) }
+  try { $childStartAttempted = $true; $child = [Diagnostics.Process]::Start($startInfo) }
   finally {
     foreach ($pointer in $pointers) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
     $pointers = @()
@@ -52,6 +62,7 @@ try {
     $privateValues = @()
     $newValue = $null
     $repeatValue = $null
+    $ownerValue = $null
     foreach ($name in $privateNames) { $startInfo.EnvironmentVariables.Remove($name) }
   }
   $stdoutTask = $child.StandardOutput.ReadToEndAsync()
@@ -66,12 +77,26 @@ try {
   Write-Host '{"operation":"set-runtime-password","role":"platypus_app","database":"neondb","passwordConfigured":true}'
   $exitCode = 0
 } catch {
-  Write-Host 'Neon app password setup was not confirmed. No automatic retry was used. Run the app connection check with the new password before explicitly retrying.'
+  if (!$childStartAttempted) {
+    # Codes and messages are fixed. Never report supplied values, actual lengths or exceptions.
+    switch ($localRefusal) {
+      'OWNER_EMPTY' { Write-Host '[NEON_PASSWORD_INPUT_OWNER_EMPTY] The owner password must not be empty.' }
+      'APP_LENGTH' { Write-Host '[NEON_PASSWORD_INPUT_APP_LENGTH] The new app password must contain 20-128 characters.' }
+      'APP_CONFIRMATION' { Write-Host '[NEON_PASSWORD_INPUT_APP_CONFIRMATION] The repeated app password must match exactly.' }
+      'APP_ASCII' { Write-Host '[NEON_PASSWORD_INPUT_APP_ASCII] The new app password must use printable ASCII characters only.' }
+      'OWNER_REUSE' { Write-Host '[NEON_PASSWORD_INPUT_OWNER_REUSE] The app password must differ from the owner password.' }
+      default { Write-Host '[NEON_PASSWORD_PREPARATION_FAILED] Local password setup did not complete.' }
+    }
+    Write-Host 'No child process was started; no remote password operation was attempted.'
+  } else {
+    Write-Host '[NEON_PASSWORD_RESULT_UNCONFIRMED] Neon app password setup was not confirmed. No automatic retry was used. Run the app connection check with the new password before explicitly retrying.'
+  }
 } finally {
   foreach ($pointer in $pointers) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
   foreach ($value in $privateValues) { $value.Dispose() }
   $newValue = $null
   $repeatValue = $null
+  $ownerValue = $null
   if ($null -ne $startInfo) { foreach ($name in $privateNames) { $startInfo.EnvironmentVariables.Remove($name) } }
   if ($null -ne $child) {
     try {
