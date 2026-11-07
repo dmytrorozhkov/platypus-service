@@ -851,6 +851,8 @@ Latest November7 live import: learner terminal receipt confirms exact snapshot n
 
 Latest November7 remote verification: learner separately ran -Action verify on the exact imported snapshot/directtarget and received verified:true with100000/100/40, matching snapshot/artifact SHA and full data fingerprint in083. This supersedes pending post-import verification statements above. Data transfer/verification is confirmed by learner receipts; next approved steps are restricted NOLOGINapp-roleSQL, private existing-role password setup, guardedLOGIN and real pooled local backend/browser verification. No app-role/runtime connection or AWS publication is yet confirmed.
 
+Latest November7 role/password follow-up085-087: learner guardedLOGIN succeeded and app role appeared in Roles; actual ConsoleReset then failed because the role has no initial password. A reviewed local hidden-prompt alternative is implemented, preserving exact restricted role/TLS/target guards and changing only the password, with no secret in SQL Editor history/files/arguments/output. Author10unit/root3PSfake/independent13newgroups passed; rootfull113/113/lint/format and freshownedPostgreSQL6SQL/HTTPgroups passed with owned teardown. Observe ordinary hosted CI for this candidate before learner-started first-password setup, then existing pooled check/serve/browser. Actual app password and runtime connection remain pending; no AWS publication. Reports085/086/087 and083 hold details.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.

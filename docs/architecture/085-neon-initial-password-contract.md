@@ -1,0 +1,23 @@
+# Private initial Neon application password085
+
+The learner approved migrating data, configuring the restricted app identity and connecting the local backend on November7,2026. Actual import and separate verify succeeded for100000tickets/100organizations/40agents, with matching file/data hashes in083. The learner then created the restricted SQL role, verified NOLOGIN, executed the existing guarded activation and observed the role in Roles. Console Reset password failed with `cannot update password for role without password`. This is actual service evidence: the prepared Console reset path cannot initialize this role's first password. Do not recreate it as a Console administrator or place a real password in SQL Editor history.
+
+This bounded necessary follow-up prepares a learner-started local initial-password command. Existing authorization covers that role/password setup; no extra remote action is performed by agents. Preserve the source database/service, imported business data, restricted role grants, main/public AWS fixture, Free plan and user-only publication. No actual credential is read, generated, printed or stored by an agent; no new dependency or CLI installation is required.
+
+## Ownership and interface
+
+- Backend author086: only `apps/server/database/neon/runtime-password.mjs`, `apps/server/test/neon-runtime-password.test.mjs`, `docs/implementation/086-neon-initial-password.md`.
+- Root: this contract, `scripts/neon-role-password.ps1`, `apps/server/test/neon-role-password-runner.test.mjs`, shared registration/docs, extension of the marked owned local SQL integration, Git and ordinary CI.
+- Independent reviewer087: `docs/reviews/087-neon-initial-password-review.md`, source/security assessment and separate focused tests after integration. No shared builds, native project database or actual Neon credentials/network.
+
+Core export is `setRuntimePassword({environment=process.env,runClient=withMigrationClient}={})`; CLI accepts exactly `set` and is import-inert. Reuse the confirmed direct Frankfurt/neondb/neondb_owner verified-TLS migration configuration, explicit target confirmation, authenticated PG18/UTF8 identity and owned bounded cleanup. New app password is a distinct `NEON_APP_NEW_PASSWORD`; reject missing, nonprintable, unsupported length20..128 or reuse of the owner password before connection. Recommend a random32-character manager-generated password. Never print its text/hash or driver exception/cause.
+
+Reuse the exact checked-in activation DO guard, without its LOGIN mutation. Require the existing role already has LOGIN. In one owned transaction check all role flags/memberships/ownership/schema/table/column grants, then alter only the existing platypus_app password using pg.escapeLiteral. No create/adopt, grants, role flag changes, business writes or automatic replay. Query/statement/lock/operation bounds must be explicit. On an uncertain COMMIT/cleanup result require the app credential check before an explicit retry; do not assert rollback certainty. Success receipt contains only operation/role/database/passwordConfigured.
+
+Root PowerShell confirms the direct hostname/database, hides owner/new/repeated-new password prompts and passes those secrets only through its owned child environment. BSTR buffers are zeroed, SecureStrings disposed and temporary references cleared; this does not claim provable zeroing of every managed heap copy. No real password is in a command argument, tracked/temporary file, SQL Editor history or output. It never relays raw stdout/stderr: success must match the exact safe receipt, failures are fixed text. It controls only its own child tree and never the native service.
+
+## Acceptance and handoff
+
+Tests must cover real Windows PowerShell with substituted fixture queues, secret isolation/redaction, wrong target/confirmation, SQL escaping and transaction refusal/rollback/uncertain commit. Actual SQL checks use only a fresh marked disposable local PostgreSQL18.6 cluster and synthetic credentials/three rows; verify an initial NULL password is set, special characters authenticate and privilege drift refuses without mutation. Independently review and observe ordinary hosted CI before handing the learner the command. No Package/Deploy/CodeBuild or production publication.
+
+After preparation the learner generates and privately saves a new app password, runs the hidden-prompt command, then runs the existing `neon-runtime.ps1 -Action check` with the pooled endpoint and app password. Only actual receipts establish live success. If anything fails, investigate without weakening guard/TLS or requesting a password in chat.

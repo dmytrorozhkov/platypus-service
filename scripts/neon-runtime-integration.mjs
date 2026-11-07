@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import { Client } from 'pg';
 import { loadSchema } from '../apps/server/database/neon/snapshot.mjs';
+import { setRuntimePassword } from '../apps/server/database/neon/runtime-password.mjs';
 import {
   probeNeonConnection,
   createNeonRuntime,
@@ -43,13 +44,13 @@ async function owned() {
     marker,
   );
 }
-async function connect(database, user) {
+async function connect(database, user, selectedPassword = password) {
   const client = new Client({
     host: '127.0.0.1',
     port,
     database,
     user,
-    password,
+    password: selectedPassword,
     ssl: false,
     options: ' ',
     replication: 'false',
@@ -233,7 +234,65 @@ try {
     'SQL activation refuses column-only writes and unrelated schema ownership, preserves NOLOGIN on refusal, accepts exact restricted role',
   );
 
-  const app = await connect('neondb', 'platypus_app');
+  // Real first-password semantics, on this owned synthetic cluster only.
+  await admin.query('ALTER ROLE platypus_app PASSWORD NULL');
+  const nextPassword =
+    "Owned'Quoted\\Password;--" + randomBytes(16).toString('hex');
+  const directHost = 'ep-owned-password.eu-central-1.aws.neon.tech';
+  const passwordEnvironment = {
+    NEON_MIGRATION_HOST: directHost,
+    NEON_MIGRATION_CONFIRM_TARGET: directHost + '/neondb',
+    NEON_MIGRATION_PASSWORD: password,
+    NEON_APP_NEW_PASSWORD: nextPassword,
+  };
+  const runPasswordClient = async (configuration, work, limits) => {
+    assert.equal(configuration.host, directHost);
+    assert.equal(configuration.user, 'neondb_owner');
+    assert.equal(configuration.database, 'neondb');
+    assert.equal(configuration.ssl.rejectUnauthorized, true);
+    assert.equal(limits.timeoutMillis, 60000);
+    return work(owner);
+  };
+  await owner.query(
+    'GRANT UPDATE(subject) ON platypus.tickets TO platypus_app',
+  );
+  await assert.rejects(
+    setRuntimePassword({
+      environment: passwordEnvironment,
+      runClient: runPasswordClient,
+    }),
+  );
+  assert.equal(
+    (
+      await targetAdmin.query(
+        "SELECT rolpassword IS NULL AS unset FROM pg_authid WHERE rolname='platypus_app'",
+      )
+    ).rows[0].unset,
+    true,
+  );
+  await owner.query(
+    'REVOKE UPDATE(subject) ON platypus.tickets FROM platypus_app',
+  );
+  checks.push(
+    'password setup refuses column write drift and rolls back without changing the NULL password',
+  );
+  const passwordReceipt = await setRuntimePassword({
+    environment: passwordEnvironment,
+    runClient: runPasswordClient,
+  });
+  assert.equal(passwordReceipt.passwordConfigured, true);
+  assert.equal(
+    (
+      await targetAdmin.query(
+        "SELECT rolpassword IS NULL AS unset FROM pg_authid WHERE rolname='platypus_app'",
+      )
+    ).rows[0].unset,
+    false,
+  );
+  const app = await connect('neondb', 'platypus_app', nextPassword);
+  checks.push(
+    'real initially NULL app password with quotes/backslashes is configured and authenticates without widening privileges',
+  );
   const connection = {
     async query(text, values) {
       await app.query('BEGIN READ ONLY');

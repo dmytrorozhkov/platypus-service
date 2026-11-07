@@ -105,6 +105,24 @@ The initial UI password-reset-before-LOGIN instructions are currently unusable f
 
 [PostgreSQL18 CREATE ROLE](https://www.postgresql.org/docs/18/sql-createrole.html) specifies that an omitted password is null and password authentication fails for a null password. The original role creation omitted PASSWORD. LOGIN alone does not supply a password; neither passwordless remote access nor a runtime cutover is implied by the next action. Never put a new password in SQL Editor history or chat. Full app-role identity/privilege probing still precedes HTTP startup.
 
+## Actual LOGIN and missing-initial-password recovery085-087
+
+The learner executed the unchanged activation SQL in the same project/production/neondb. SQL Editor showed successful BEGIN/DO/ALTER/COMMIT. The refreshed Roles UI then displayed platypus_app, but Reset password failed with the actual service error `cannot update password for role without password`. This supersedes the earlier uncertain listing observations: the role is now shown after the learner's activation/refresh, but the Console reset route did not initialize its first password. No password success or app-runtime connection is inferred. The assistant's earlier instruction to use Reset before a first password was unsupported by this actual result.
+
+Contract085 and implementation086 prepare a bounded local alternative; independent review087 records its assessment. The new learner-only command is:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\neon-role-password.ps1
+```
+
+After reviewed hosted checks, privately generate/save a distinct random32-character printable ASCII app password, then run the command. It asks for the same **direct Frankfurt hostname**, exact hostname/neondb confirmation, the **existing Neon neondb_owner password**, the **NEW platypus_app password** and its repeat. All three password prompts are hidden. The app value must have20..128 printable ASCII characters and differ from the owner value; no password is generated or printed by the command. Do not use the Neon SQL Editor for password text and never send it to an agent.
+
+The new ESM utility reuses verified-TLS target/identity validation and the exact pinned effective-role DO guard, requires existing LOGIN, and changes only platypus_app's password in one transaction. It uses pg.escapeLiteral for special characters, with60second overall/3second owned cleanup,15secondquery/10secondstatement/3secondlock/15secondidle bounds. It creates/adopts/grants nothing and never changes LOGIN or business data. Precommit errors attempt rollback; uncertain COMMIT/cleanup requires the app connection check before an explicit retry, without automatic replay or a rollback guarantee. The PowerShell wrapper passes secrets only to its owned child environment, zeroes BSTRs/disposes SecureStrings/clears temporary references, validates the exact safe receipt and never forwards raw stdout/stderr. Managed-memory nulling is not a promise of erasing every heap copy.
+
+Expected safe result is operation=set-runtime-password,role=platypus_app,database=neondb,passwordConfigured:true. This confirms only owner-side password setup; next use the existing pooled app check with the new password, followed by serve and browser acceptance. A failed setup does not authorize blind replay.
+
+Author10/10unit groups and coordinator3/3real Windows PowerShell fake-child groups passed. Independent reviewer separately passed all13newgroups with zero skips. Coordinator full registered server suite under CI=true passed113/113, repository lint and formatting passed. A fresh marked owned PostgreSQL18.6 cluster passed6actualSQL/HTTP groups: existing activation checks; column-only-write password refusal preserving NULL; successful first password with quotes/backslashes and actual app authentication; exact effective-role probe; drift refusal; real pagedHTTP/options/health/CORS and owned shutdown. All clients and only that owned cluster were stopped. These used three synthetic rows and injected local transport, not the learner's native source or Neon TLS. No real credential or business data was used by an agent. The new reviewed source requires its own observed ordinary push CI before handoff; actual learner password setup and app connection remain pending. No AWS/Package/Deploy/CodeBuild or paid upgrade occurred.
+
 ## Source
 
 [Neon role management](https://neon.com/docs/manage/roles) distinguishes restricted SQL-created roles from default Console-created administrative roles, describes existing-role password reset and LOGIN/NOLOGIN. Current live behavior still requires verification with the learner's actual project and private credentials.
