@@ -18,7 +18,10 @@ import {
 } from '../aws/templates.mjs';
 import { verifyDeliveryBundle } from './bundle.mjs';
 import { verifyNeonRelease } from '../neon-aws/release.mjs';
-import { validateNeonLambdaConfiguration } from '../neon-aws/runtime-binding.mjs';
+import {
+  validateNeonLambdaConfiguration,
+  validateStoredNeonRuntime,
+} from '../neon-aws/runtime-binding.mjs';
 
 export const stateKey = '_releases/delivery/current.json';
 const prefix = '_releases/delivery/';
@@ -430,6 +433,17 @@ export async function preflight({ target, transport }) {
   };
 }
 
+export async function readBackendRuntime(transport, target, manifest) {
+  if (manifest.kind !== 'platypus-neon-release-candidate') return undefined;
+  const stored = await object(
+    transport,
+    target,
+    prefix + 'files/' + releaseId(manifest.release) + '/backend/runtime.json',
+  );
+  validateStoredNeonRuntime({ target, manifest, body: stored.body });
+  return stored.body;
+}
+
 async function backend(transport, target, manifest, expectedVersion) {
   const alias = await transport.request('lambda', 'get-alias', {
     FunctionName: target.resources.functionArn,
@@ -454,15 +468,7 @@ async function backend(transport, target, manifest, expectedVersion) {
       Qualifier: alias.FunctionVersion,
     },
   );
-  let runtimeBody;
-  if (manifest.kind === 'platypus-neon-release-candidate') {
-    const stored = await object(
-      transport,
-      target,
-      prefix + 'files/' + releaseId(manifest.release) + '/backend/runtime.json',
-    );
-    runtimeBody = stored.body;
-  }
+  const runtimeBody = await readBackendRuntime(transport, target, manifest);
   return configuration(
     target,
     manifest,
@@ -885,7 +891,13 @@ async function waitFor(read, terminal, label) {
   throw new Error(label + ' timed out; pending state retained.');
 }
 
-export function validateChangeSet(changeSet, target, name, recovery = false) {
+export function validateChangeSet(
+  changeSet,
+  target,
+  name,
+  recovery = false,
+  neonTransition = false,
+) {
   need(
     changeSet.StackId === target.stacks.backend &&
       changeSet.ChangeSetName === name &&
@@ -910,6 +922,25 @@ export function validateChangeSet(changeSet, target, name, recovery = false) {
         Version: ['AWS::Lambda::Version', ['CodeSha256', 'Description']],
         LiveAlias: ['AWS::Lambda::Alias', ['FunctionVersion']],
       };
+  need(
+    typeof neonTransition === 'boolean',
+    'Explicit Neon transition mode required.',
+  );
+  if (neonTransition) {
+    need(
+      !recovery &&
+        changeSet.RoleARN === target.serviceRoleArn &&
+        same(
+          changeSet.Changes.map(
+            (change) => change.ResourceChange?.LogicalResourceId,
+          ).sort(),
+          ['ExecutionRole', 'Function', 'LiveAlias', 'Version'],
+        ),
+      'Neon transition requires the reviewed role and exact resource set.',
+    );
+    allowed.ExecutionRole = ['AWS::IAM::Role', ['Policies']];
+    allowed.Function[1].push('Timeout');
+  }
   for (const change of changeSet.Changes) {
     const item = change.ResourceChange;
     const spec = allowed[item?.LogicalResourceId];
@@ -1562,7 +1593,13 @@ export async function recoverDelivery({
   );
   need(
     same(
-      configuration(target, record.manifest, record.backend.version, config),
+      configuration(
+        target,
+        record.manifest,
+        record.backend.version,
+        config,
+        await readBackendRuntime(transport, target, record.manifest),
+      ),
       record.backend,
     ),
     'Recovery version is not compatible with the actual origin/code/configuration.',
@@ -1622,6 +1659,7 @@ export async function recoverDelivery({
         known.manifest,
         alias.FunctionVersion,
         liveConfiguration,
+        await readBackendRuntime(transport, target, known.manifest),
       );
       if (known.observed && !same(observed, known.observed)) continue;
       startingManifest = known.manifest;
