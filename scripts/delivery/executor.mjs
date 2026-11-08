@@ -17,6 +17,7 @@ import {
   storageTemplate,
 } from '../aws/templates.mjs';
 import { verifyDeliveryBundle } from './bundle.mjs';
+import { verifyNeonRelease } from '../neon-aws/release.mjs';
 
 export const stateKey = '_releases/delivery/current.json';
 const prefix = '_releases/delivery/';
@@ -36,8 +37,17 @@ const base = (target) => ({
 const recordKey = (release) =>
   prefix + 'records/' + releaseId(release) + '.json';
 const now = () => new Date().toISOString();
-const revision = (manifest) =>
-  sha256(manifest.backend.sha256 + '\n' + manifest.origin);
+const revision = (manifest) => {
+  if (manifest.kind === 'platypus-neon-release-candidate') {
+    const value = manifest.backend?.backendRevision;
+    need(
+      typeof value === 'string' && /^[a-f0-9]{64}$/.test(value),
+      'Invalid Neon backend revision.',
+    );
+    return value;
+  }
+  return sha256(manifest.backend.sha256 + '\n' + manifest.origin);
+};
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object')
@@ -518,6 +528,10 @@ async function verifyObjects(
 
 async function snapshot(directory, manifest) {
   const inventory = [];
+  const manifestFile =
+    manifest.kind === 'platypus-neon-release-candidate'
+      ? 'neon-release.json'
+      : 'manifest.json';
   let total = 0;
   for (const file of await files(directory)) {
     need(
@@ -536,7 +550,7 @@ async function snapshot(directory, manifest) {
   need(
     inventory.some(
       (item) =>
-        item.file === 'manifest.json' && item.sha256 === sha256(json(manifest)),
+        item.file === manifestFile && item.sha256 === sha256(json(manifest)),
     ),
     'Manifest bytes must use the canonical release format.',
   );
@@ -568,7 +582,10 @@ async function readRecord(transport, target, release, expectedHash) {
       record.status === 'completed' &&
       record.release === release &&
       same(record.target, identity(target)) &&
-      record.manifest?.scope === 'full' &&
+      (record.manifest?.kind === 'platypus-neon-release-candidate'
+        ? record.provenance === 'github' &&
+          record.manifest.sourceSha === record.context?.sourceSha
+        : record.manifest?.scope === 'full') &&
       record.manifest.release === release &&
       record.manifest.origin === target.resources.origin &&
       record.backend?.origin === target.resources.origin &&
@@ -591,11 +608,29 @@ async function readRecord(transport, target, release, expectedHash) {
   return record;
 }
 
-async function restoreFiles(transport, target, record) {
+export async function restoreFiles(transport, target, record) {
   await mkdir(path.join(outputRoot, 'recovery'), { recursive: true });
-  const directory = await mkdtemp(
+  const recoveryRoot = await mkdtemp(
     path.join(outputRoot, 'recovery', 'restore-'),
   );
+  const neon = record.manifest?.kind === 'platypus-neon-release-candidate';
+  if (neon) {
+    await writeFile(
+      path.join(recoveryRoot, 'package.json'),
+      json({ name: '@platypus/workspace' }),
+      { flag: 'wx' },
+    );
+  }
+  const directory = neon
+    ? within(
+        recoveryRoot,
+        path.join(
+          recoveryRoot,
+          '.local/neon-aws/releases',
+          releaseId(record.release),
+        ),
+      )
+    : recoveryRoot;
   let total = 0;
   const seen = new Set();
   for (const item of record.inventory) {
@@ -627,6 +662,38 @@ async function restoreFiles(transport, target, record) {
     );
     await mkdir(path.dirname(filename), { recursive: true });
     await writeFile(filename, value.body, { flag: 'wx' });
+  }
+  if (neon) {
+    need(
+      record.provenance === 'github' &&
+        record.context?.sourceSha === record.manifest.sourceSha,
+      'Stored Neon source provenance differs.',
+    );
+    const runtimeConfig = JSON.parse(
+      await readFile(path.join(directory, 'backend/runtime.json'), 'utf8'),
+    );
+    need(
+      runtimeConfig.accountId === target.accountId &&
+        runtimeConfig.region === target.region &&
+        runtimeConfig.origin === target.resources.origin,
+      'Stored Neon runtime differs from the selected AWS target.',
+    );
+    const verified = await verifyNeonRelease({
+      root: recoveryRoot,
+      release: record.release,
+      expectedSourceSha: record.context.sourceSha,
+      expectedRuntimeConfig: runtimeConfig,
+      expectedManifestSha256: record.manifestSha256,
+    });
+    need(
+      same(verified.manifest, record.manifest),
+      'Stored Neon manifest differs from completed record.',
+    );
+    return {
+      value: verified.manifest,
+      directory: verified.directory,
+      filename: path.join(verified.directory, 'neon-release.json'),
+    };
   }
   const owned = await ownedManifest(path.join(directory, 'manifest.json'));
   need(

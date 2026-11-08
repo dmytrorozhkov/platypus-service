@@ -12,6 +12,7 @@ import {
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import {
+  files,
   json,
   outputRoot,
   projectRoot,
@@ -20,6 +21,7 @@ import {
 } from '../aws/common.mjs';
 import { verifyDeliveryBundle } from '../delivery/bundle.mjs';
 import { prepareNeonRelease, verifyNeonRelease } from './release.mjs';
+import { restoreFiles } from '../delivery/executor.mjs';
 
 const sourceSha = '3'.repeat(40);
 const config = {
@@ -409,6 +411,90 @@ test(
             !output.stdout.includes(canary) && !output.stderr.includes(canary),
           );
           assert.match(output.stderr, /no publication was attempted/);
+        },
+      );
+      await t.test(
+        'restores a pinned Neon candidate using only stored-object reads',
+        async () => {
+          const stored = new Map(
+            await Promise.all(
+              (await files(result.directory)).map(async (file) => [
+                file,
+                await readFile(path.join(result.directory, file)),
+              ]),
+            ),
+          );
+          const record = {
+            release,
+            provenance: 'github',
+            context: { sourceSha },
+            manifest: result.manifest,
+            manifestSha256: result.manifestSha256,
+            inventory: [...stored].map(([file, body]) => ({
+              file,
+              bytes: body.length,
+              sha256: sha256(body),
+            })),
+          };
+          const target = {
+            accountId: config.accountId,
+            region: config.region,
+            resources: {
+              bucket: 'offline-recovery-fixture',
+              origin: config.origin,
+            },
+          };
+          let reads = 0;
+          const transport = {
+            async getObject(input) {
+              assert.equal(input.Bucket, target.resources.bucket);
+              assert.equal(input.ExpectedBucketOwner, config.accountId);
+              const prefix = `_releases/delivery/files/${release}/`;
+              assert(input.Key.startsWith(prefix));
+              const body = stored.get(input.Key.slice(prefix.length));
+              assert(Buffer.isBuffer(body));
+              reads++;
+              return {
+                body,
+                ETag: '"offline-fixture"',
+                ChecksumSHA256: Buffer.from(sha256(body), 'hex').toString(
+                  'base64',
+                ),
+              };
+            },
+            async putObject() {
+              assert.fail('Recovery verification must not write to AWS.');
+            },
+            async request() {
+              assert.fail('Recovery verification must not call AWS services.');
+            },
+          };
+          let restored;
+          try {
+            restored = await restoreFiles(transport, target, record);
+            assert.deepEqual(restored.value, result.manifest);
+            assert.equal(reads, stored.size);
+            assert.deepEqual(
+              JSON.parse(
+                await readFile(
+                  path.join(restored.directory, 'backend/runtime.json'),
+                  'utf8',
+                ),
+              ),
+              config,
+            );
+          } finally {
+            if (restored) {
+              const parent = path.join(outputRoot, 'recovery');
+              const recoveryRoot = within(
+                parent,
+                path.resolve(restored.directory, '../../../..'),
+              );
+              assert.equal(path.dirname(recoveryRoot), parent);
+              assert(path.basename(recoveryRoot).startsWith('restore-'));
+              await rm(recoveryRoot, { recursive: true, force: true });
+            }
+          }
         },
       );
     } finally {
