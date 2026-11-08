@@ -365,9 +365,13 @@ class FakeAws extends MemoryObjects {
           : { ALLOWED_ORIGINS: productionOrigin },
       },
       Description:
-        'Platypus revision ' +
-        (manifest.backend.backendRevision ??
-          sha256(manifest.backend.sha256 + '\n' + productionOrigin)),
+        this.backendTemplate.Resources.Version.Properties.Description[
+          'Fn::Sub'
+        ].replace(
+          '${BackendRevision}',
+          manifest.backend.backendRevision ??
+            sha256(manifest.backend.sha256 + '\n' + productionOrigin),
+        ),
       Runtime: 'nodejs24.x',
       Architectures: ['arm64'],
       Handler: 'lambda.handler',
@@ -1431,6 +1435,26 @@ test('initial baseline registration explicitly permits an unassigned fixture rol
     /reviewed CloudFormation service role/,
   );
   assert.equal(transport.mutations().length, 0);
+
+  const baselineRevision = transport.parameters.BackendRevision;
+  for (const description of [
+    'Platypus revision ' + baselineRevision,
+    'Revision ' + '0'.repeat(64),
+  ]) {
+    transport.requestFault = (call, aws) => {
+      if (
+        call.service === 'lambda' &&
+        call.operation === 'get-function-configuration'
+      )
+        return { ...aws.configuration('2'), Description: description };
+    };
+    await assert.rejects(
+      importBaseline({ ...input, allowNeonTransition: true }),
+      /Backend code\/configuration\/origin is incompatible/,
+    );
+    assert.equal(transport.mutations().length, 0);
+  }
+  transport.requestFault = undefined;
 
   transport.fault = (call) => {
     if (
