@@ -18,6 +18,7 @@ import {
 } from '../aws/templates.mjs';
 import { verifyDeliveryBundle } from './bundle.mjs';
 import { verifyNeonRelease } from '../neon-aws/release.mjs';
+import { validateNeonLambdaConfiguration } from '../neon-aws/runtime-binding.mjs';
 
 export const stateKey = '_releases/delivery/current.json';
 const prefix = '_releases/delivery/';
@@ -453,10 +454,34 @@ async function backend(transport, target, manifest, expectedVersion) {
       Qualifier: alias.FunctionVersion,
     },
   );
-  return configuration(target, manifest, alias.FunctionVersion, config);
+  let runtimeBody;
+  if (manifest.kind === 'platypus-neon-release-candidate') {
+    const stored = await object(
+      transport,
+      target,
+      prefix + 'files/' + releaseId(manifest.release) + '/backend/runtime.json',
+    );
+    runtimeBody = stored.body;
+  }
+  return configuration(
+    target,
+    manifest,
+    alias.FunctionVersion,
+    config,
+    runtimeBody,
+  );
 }
 
-function configuration(target, manifest, version, config) {
+function configuration(target, manifest, version, config, runtimeBody) {
+  const neon = manifest.kind === 'platypus-neon-release-candidate';
+  if (neon) {
+    validateNeonLambdaConfiguration({
+      target,
+      manifest,
+      configuration: config,
+      body: runtimeBody,
+    });
+  }
   need(
     config.Version === version &&
       config.CodeSha256 === manifest.backend.codeSha256 &&
@@ -467,7 +492,7 @@ function configuration(target, manifest, version, config) {
       same(config.Architectures, ['arm64']) &&
       config.Handler === 'lambda.handler' &&
       config.MemorySize === 256 &&
-      config.Timeout === 3 &&
+      config.Timeout === (neon ? 30 : 3) &&
       !config.VpcConfig?.VpcId,
     'Backend code/configuration/origin is incompatible.',
   );
