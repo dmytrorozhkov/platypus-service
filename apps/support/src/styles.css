@@ -60,4 +60,63 @@
     font: inherit;
     cursor: pointer;
   }
+  .ps-support .ticket-query-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ps-support .ticket-search > label {
+    margin-bottom: 8px;
+  }
+  .ps-support .ticket-search-row,
+  .ps-support .ticket-page-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .ps-support .ticket-search-row input {
+    flex: 1;
+    min-width: 180px;
+  }
+  .ps-support .ticket-query-controls input,
+  .ps-support .ticket-query-controls select,
+  .ps-support .ticket-query-controls button,
+  .ps-support .ticket-pagination button {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-height: 40px;
+    border: 1px solid var(--su-color-line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--su-color-ink);
+    background: white;
+  }
+  .ps-support .ticket-query-controls :is(input, select, button):focus-visible,
+  .ps-support .ticket-pagination button:focus-visible {
+    outline: 2px solid var(--su-color-brand);
+    outline-offset: 3px;
+  }
+  .ps-support .ticket-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .ps-support .ticket-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+    font-size: 12px;
+  }
+  .ps-support .ticket-pagination button:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
 }

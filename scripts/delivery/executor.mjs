@@ -17,6 +17,13 @@ import {
   storageTemplate,
 } from '../aws/templates.mjs';
 import { verifyDeliveryBundle } from './bundle.mjs';
+import { verifyNeonRelease } from '../neon-aws/release.mjs';
+import {
+  validateNeonLambdaConfiguration,
+  validateStoredNeonRuntime,
+} from '../neon-aws/runtime-binding.mjs';
+import { buildNeonBackendUpdate } from '../neon-aws/backend-update.mjs';
+import { neonBackendTemplate } from '../neon-aws/templates.mjs';
 
 export const stateKey = '_releases/delivery/current.json';
 const prefix = '_releases/delivery/';
@@ -36,8 +43,17 @@ const base = (target) => ({
 const recordKey = (release) =>
   prefix + 'records/' + releaseId(release) + '.json';
 const now = () => new Date().toISOString();
-const revision = (manifest) =>
-  sha256(manifest.backend.sha256 + '\n' + manifest.origin);
+const revision = (manifest) => {
+  if (manifest.kind === 'platypus-neon-release-candidate') {
+    const value = manifest.backend?.backendRevision;
+    need(
+      typeof value === 'string' && /^[a-f0-9]{64}$/.test(value),
+      'Invalid Neon backend revision.',
+    );
+    return value;
+  }
+  return sha256(manifest.backend.sha256 + '\n' + manifest.origin);
+};
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object')
@@ -258,7 +274,11 @@ export async function readState(transport, target, optional = false) {
   return { value: state, ETag: value.ETag };
 }
 
-export async function preflight({ target, transport }) {
+export async function preflight({
+  target,
+  transport,
+  allowNeonTransition = false,
+}) {
   validateTarget(target);
   const call = (service, operation, input = {}) =>
     transport.request(service, operation, input);
@@ -293,6 +313,7 @@ export async function preflight({ target, transport }) {
     edge: edgeTemplate(),
   };
   const stacks = {};
+  let backendVariant;
   for (const kind of ['storage', 'backend', 'edge']) {
     const response = await call('cloudformation', 'describe-stacks', {
       StackName: target.stacks[kind],
@@ -307,11 +328,6 @@ export async function preflight({ target, transport }) {
         ),
       'Owned stable stack required: ' + kind,
     );
-    if (kind === 'backend')
-      need(
-        stack.RoleARN === target.serviceRoleArn,
-        'Backend stack must already use the reviewed CloudFormation service role.',
-      );
     const template = await call('cloudformation', 'get-template', {
       StackName: target.stacks[kind],
       TemplateStage: 'Original',
@@ -320,10 +336,20 @@ export async function preflight({ target, transport }) {
       typeof template.TemplateBody === 'string'
         ? JSON.parse(template.TemplateBody)
         : template.TemplateBody;
-    need(
-      same(canonical(body), canonical(expectedTemplates[kind])),
-      'Stack template drift: ' + kind,
-    );
+    const fixtureTemplate = same(body, expectedTemplates[kind]);
+    const neonTemplate =
+      kind === 'backend' && same(body, neonBackendTemplate());
+    need(fixtureTemplate || neonTemplate, 'Stack template drift: ' + kind);
+    if (kind === 'backend') {
+      backendVariant = neonTemplate ? 'neon' : 'fixture';
+      need(
+        stack.RoleARN === target.serviceRoleArn ||
+          (allowNeonTransition === true &&
+            fixtureTemplate &&
+            stack.RoleARN === undefined),
+        'Backend stack must already use the reviewed CloudFormation service role.',
+      );
+    }
     stacks[kind] = stack;
     const inventory = await call('cloudformation', 'list-stack-resources', {
       StackName: target.stacks[kind],
@@ -416,7 +442,19 @@ export async function preflight({ target, transport }) {
     quota: q,
     checkedAt: now(),
     stacks,
+    backendVariant,
   };
+}
+
+export async function readBackendRuntime(transport, target, manifest) {
+  if (manifest.kind !== 'platypus-neon-release-candidate') return undefined;
+  const stored = await object(
+    transport,
+    target,
+    prefix + 'files/' + releaseId(manifest.release) + '/backend/runtime.json',
+  );
+  validateStoredNeonRuntime({ target, manifest, body: stored.body });
+  return stored.body;
 }
 
 async function backend(transport, target, manifest, expectedVersion) {
@@ -443,10 +481,26 @@ async function backend(transport, target, manifest, expectedVersion) {
       Qualifier: alias.FunctionVersion,
     },
   );
-  return configuration(target, manifest, alias.FunctionVersion, config);
+  const runtimeBody = await readBackendRuntime(transport, target, manifest);
+  return configuration(
+    target,
+    manifest,
+    alias.FunctionVersion,
+    config,
+    runtimeBody,
+  );
 }
 
-function configuration(target, manifest, version, config) {
+function configuration(target, manifest, version, config, runtimeBody) {
+  const neon = manifest.kind === 'platypus-neon-release-candidate';
+  if (neon) {
+    validateNeonLambdaConfiguration({
+      target,
+      manifest,
+      configuration: config,
+      body: runtimeBody,
+    });
+  }
   need(
     config.Version === version &&
       config.CodeSha256 === manifest.backend.codeSha256 &&
@@ -457,7 +511,7 @@ function configuration(target, manifest, version, config) {
       same(config.Architectures, ['arm64']) &&
       config.Handler === 'lambda.handler' &&
       config.MemorySize === 256 &&
-      config.Timeout === 3 &&
+      config.Timeout === (neon ? 30 : 3) &&
       !config.VpcConfig?.VpcId,
     'Backend code/configuration/origin is incompatible.',
   );
@@ -518,6 +572,10 @@ async function verifyObjects(
 
 async function snapshot(directory, manifest) {
   const inventory = [];
+  const manifestFile =
+    manifest.kind === 'platypus-neon-release-candidate'
+      ? 'neon-release.json'
+      : 'manifest.json';
   let total = 0;
   for (const file of await files(directory)) {
     need(
@@ -536,7 +594,7 @@ async function snapshot(directory, manifest) {
   need(
     inventory.some(
       (item) =>
-        item.file === 'manifest.json' && item.sha256 === sha256(json(manifest)),
+        item.file === manifestFile && item.sha256 === sha256(json(manifest)),
     ),
     'Manifest bytes must use the canonical release format.',
   );
@@ -568,7 +626,10 @@ async function readRecord(transport, target, release, expectedHash) {
       record.status === 'completed' &&
       record.release === release &&
       same(record.target, identity(target)) &&
-      record.manifest?.scope === 'full' &&
+      (record.manifest?.kind === 'platypus-neon-release-candidate'
+        ? record.provenance === 'github' &&
+          record.manifest.sourceSha === record.context?.sourceSha
+        : record.manifest?.scope === 'full') &&
       record.manifest.release === release &&
       record.manifest.origin === target.resources.origin &&
       record.backend?.origin === target.resources.origin &&
@@ -591,11 +652,29 @@ async function readRecord(transport, target, release, expectedHash) {
   return record;
 }
 
-async function restoreFiles(transport, target, record) {
+export async function restoreFiles(transport, target, record) {
   await mkdir(path.join(outputRoot, 'recovery'), { recursive: true });
-  const directory = await mkdtemp(
+  const recoveryRoot = await mkdtemp(
     path.join(outputRoot, 'recovery', 'restore-'),
   );
+  const neon = record.manifest?.kind === 'platypus-neon-release-candidate';
+  if (neon) {
+    await writeFile(
+      path.join(recoveryRoot, 'package.json'),
+      json({ name: '@platypus/workspace' }),
+      { flag: 'wx' },
+    );
+  }
+  const directory = neon
+    ? within(
+        recoveryRoot,
+        path.join(
+          recoveryRoot,
+          '.local/neon-aws/releases',
+          releaseId(record.release),
+        ),
+      )
+    : recoveryRoot;
   let total = 0;
   const seen = new Set();
   for (const item of record.inventory) {
@@ -627,6 +706,38 @@ async function restoreFiles(transport, target, record) {
     );
     await mkdir(path.dirname(filename), { recursive: true });
     await writeFile(filename, value.body, { flag: 'wx' });
+  }
+  if (neon) {
+    need(
+      record.provenance === 'github' &&
+        record.context?.sourceSha === record.manifest.sourceSha,
+      'Stored Neon source provenance differs.',
+    );
+    const runtimeConfig = JSON.parse(
+      await readFile(path.join(directory, 'backend/runtime.json'), 'utf8'),
+    );
+    need(
+      runtimeConfig.accountId === target.accountId &&
+        runtimeConfig.region === target.region &&
+        runtimeConfig.origin === target.resources.origin,
+      'Stored Neon runtime differs from the selected AWS target.',
+    );
+    const verified = await verifyNeonRelease({
+      root: recoveryRoot,
+      release: record.release,
+      expectedSourceSha: record.context.sourceSha,
+      expectedRuntimeConfig: runtimeConfig,
+      expectedManifestSha256: record.manifestSha256,
+    });
+    need(
+      same(verified.manifest, record.manifest),
+      'Stored Neon manifest differs from completed record.',
+    );
+    return {
+      value: verified.manifest,
+      directory: verified.directory,
+      filename: path.join(verified.directory, 'neon-release.json'),
+    };
   }
   const owned = await ownedManifest(path.join(directory, 'manifest.json'));
   need(
@@ -738,17 +849,29 @@ async function finish(
   return value;
 }
 
-async function acceptance(liveCheck, target) {
+export async function acceptance(liveCheck, target, manifest) {
   need(
     typeof liveCheck === 'function',
     'A live HTTP/browser checker is mandatory.',
   );
+  need(
+    manifest?.origin === target.resources.origin,
+    'Live acceptance origin differs from the selected release.',
+  );
+  const neon = manifest.kind === 'platypus-neon-release-candidate';
   const result = await liveCheck({
     origin: target.resources.origin,
     functionUrl: target.resources.functionUrl,
     bucketOrigin: 'https://' + target.resources.bucketDomain,
+    runtimeVariant: neon ? 'neon' : 'fixture',
   });
   need(result?.success === true, 'Live HTTP/browser acceptance failed.');
+  if (neon)
+    need(
+      result.kind === 'platypus-neon-live-check' &&
+        result.origin === target.resources.origin,
+      'Neon-specific live acceptance evidence is required.',
+    );
   return {
     success: true,
     checkedAt: now(),
@@ -793,7 +916,13 @@ async function waitFor(read, terminal, label) {
   throw new Error(label + ' timed out; pending state retained.');
 }
 
-export function validateChangeSet(changeSet, target, name, recovery = false) {
+export function validateChangeSet(
+  changeSet,
+  target,
+  name,
+  recovery = false,
+  neonTransition = false,
+) {
   need(
     changeSet.StackId === target.stacks.backend &&
       changeSet.ChangeSetName === name &&
@@ -818,6 +947,25 @@ export function validateChangeSet(changeSet, target, name, recovery = false) {
         Version: ['AWS::Lambda::Version', ['CodeSha256', 'Description']],
         LiveAlias: ['AWS::Lambda::Alias', ['FunctionVersion']],
       };
+  need(
+    typeof neonTransition === 'boolean',
+    'Explicit Neon transition mode required.',
+  );
+  if (neonTransition) {
+    need(
+      !recovery &&
+        changeSet.RoleARN === target.serviceRoleArn &&
+        same(
+          changeSet.Changes.map(
+            (change) => change.ResourceChange?.LogicalResourceId,
+          ).sort(),
+          ['ExecutionRole', 'Function', 'LiveAlias', 'Version'],
+        ),
+      'Neon transition requires the reviewed role and exact resource set.',
+    );
+    allowed.ExecutionRole = ['AWS::IAM::Role', ['Policies']];
+    allowed.Function[1].push('Timeout');
+  }
   for (const change of changeSet.Changes) {
     const item = change.ResourceChange;
     const spec = allowed[item?.LogicalResourceId];
@@ -844,13 +992,18 @@ export function validateChangeSet(changeSet, target, name, recovery = false) {
   }
 }
 
-async function updateBackend(
+export async function updateBackend(
   transport,
   target,
   manifest,
   pending,
   recoveryVersion,
+  allowNeonTransition = false,
 ) {
+  need(
+    typeof allowNeonTransition === 'boolean',
+    'Explicit Neon transition selection required.',
+  );
   const stack = (
     await transport.request('cloudformation', 'describe-stacks', {
       StackName: target.stacks.backend,
@@ -859,45 +1012,102 @@ async function updateBackend(
   need(
     stack?.StackId === target.stacks.backend &&
       ['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(stack.StackStatus) &&
-      stack.RoleARN === target.serviceRoleArn,
+      Array.isArray(stack.Parameters),
     'Backend stack is not ready for a reviewed update.',
   );
   const oldParameters = Object.fromEntries(
     stack.Parameters.map((item) => [item.ParameterKey, item.ParameterValue]),
   );
+  need(
+    Object.keys(oldParameters).length === stack.Parameters.length,
+    'Duplicate backend stack parameters.',
+  );
+  const fixtureNames = Object.keys(backendTemplate().Parameters);
+  const neonNames = Object.keys(neonBackendTemplate().Parameters);
+  const actualNames = Object.keys(oldParameters).sort();
+  const fixtureStack = same(actualNames, [...fixtureNames].sort());
+  const neonStack = same(actualNames, [...neonNames].sort());
+  need(fixtureStack || neonStack, 'Unknown backend stack parameters.');
+
+  const neon = manifest.kind === 'platypus-neon-release-candidate';
+  const transition = neon && fixtureStack && !recoveryVersion;
+  need(
+    !transition || allowNeonTransition,
+    'First Neon transition requires explicit selection.',
+  );
+  need(
+    !(neon && recoveryVersion && !neonStack),
+    'Neon recovery requires an established Neon stack.',
+  );
+  need(
+    !neonStack || neon || Boolean(recoveryVersion),
+    'Fixture publication into a Neon stack requires explicit recovery.',
+  );
+  const initialRole = stack.RoleARN;
+  need(
+    initialRole === target.serviceRoleArn ||
+      (transition && initialRole === undefined),
+    'Unexpected backend CloudFormation service role.',
+  );
+  need(
+    oldParameters.ConcurrencyMode === 'account-cap-ten',
+    'Backend concurrency decision drift.',
+  );
+
+  if (neon || neonStack) {
+    const current = await transport.request('cloudformation', 'get-template', {
+      StackName: target.stacks.backend,
+      TemplateStage: 'Original',
+    });
+    const currentBody =
+      typeof current.TemplateBody === 'string'
+        ? JSON.parse(current.TemplateBody)
+        : current.TemplateBody;
+    need(
+      same(
+        currentBody,
+        fixtureStack ? backendTemplate() : neonBackendTemplate(),
+      ),
+      'Backend template differs from the reviewed runtime variant.',
+    );
+  }
+
+  let planned;
+  if (neon && !recoveryVersion) {
+    const runtimeBody = await readBackendRuntime(transport, target, manifest);
+    const template = await object(
+      transport,
+      target,
+      prefix +
+        'files/' +
+        releaseId(manifest.release) +
+        '/backend/backend-template.json',
+    );
+    planned = buildNeonBackendUpdate({
+      target,
+      manifest,
+      runtimeBody,
+      templateBody: template.body,
+    });
+  }
   const selected = recoveryVersion
     ? { RollbackVersion: recoveryVersion }
-    : {
+    : (planned?.selected ?? {
         PackageBucket: target.resources.bucket,
         PackageKey: manifest.backend.key,
         PackageSha256: manifest.backend.codeSha256,
         AllowedOrigin: target.resources.origin,
         BackendRevision: revision(manifest),
         RollbackVersion: '',
-      };
-  need(
-    oldParameters.ConcurrencyMode === 'account-cap-ten',
-    'Backend concurrency decision drift.',
-  );
+      });
   if (
     Object.entries(selected).every(
       ([key, value]) => oldParameters[key] === value,
     )
   )
     return backend(transport, target, manifest, recoveryVersion);
-  const names = [
-    'PackageBucket',
-    'PackageKey',
-    'PackageSha256',
-    'AllowedOrigin',
-    'BackendRevision',
-    'ConcurrencyMode',
-    'RollbackVersion',
-  ];
-  need(
-    same(Object.keys(oldParameters).sort(), [...names].sort()),
-    'Unknown backend stack parameters.',
-  );
+
+  const names = neon || neonStack ? neonNames : fixtureNames;
   const name = 'delivery-' + pending.operationId;
   const parameters = names.map((ParameterKey) =>
     selected[ParameterKey] === undefined
@@ -908,7 +1118,9 @@ async function updateBackend(
     StackName: target.stacks.backend,
     ChangeSetName: name,
     ChangeSetType: 'UPDATE',
-    UsePreviousTemplate: true,
+    ...(transition
+      ? { TemplateBody: planned.templateBody }
+      : { UsePreviousTemplate: true }),
     Parameters: parameters,
     Capabilities: ['CAPABILITY_IAM'],
     RoleARN: target.serviceRoleArn,
@@ -942,7 +1154,28 @@ async function updateBackend(
           : false,
     'Change set creation',
   );
-  validateChangeSet(changes, target, name, Boolean(recoveryVersion));
+  validateChangeSet(
+    changes,
+    target,
+    name,
+    Boolean(recoveryVersion),
+    transition,
+  );
+  if (transition) {
+    const reviewed = await transport.request('cloudformation', 'get-template', {
+      StackName: target.stacks.backend,
+      ChangeSetName: created.Id,
+      TemplateStage: 'Original',
+    });
+    const reviewedBody =
+      typeof reviewed.TemplateBody === 'string'
+        ? JSON.parse(reviewed.TemplateBody)
+        : reviewed.TemplateBody;
+    need(
+      same(reviewedBody, JSON.parse(planned.templateBody)),
+      'Created change set template differs from the reviewed Neon template.',
+    );
+  }
   need(
     same(
       canonical(
@@ -968,7 +1201,17 @@ async function updateBackend(
   ).Stacks?.[0];
   need(
     beforeExecution?.StackId === target.stacks.backend &&
-      beforeExecution.RoleARN === target.serviceRoleArn &&
+      (beforeExecution.RoleARN === initialRole ||
+        (transition && beforeExecution.RoleARN === target.serviceRoleArn)) &&
+      same(
+        Object.fromEntries(
+          (beforeExecution.Parameters ?? []).map((item) => [
+            item.ParameterKey,
+            item.ParameterValue,
+          ]),
+        ),
+        oldParameters,
+      ) &&
       ['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(
         beforeExecution.StackStatus,
       ),
@@ -990,6 +1233,8 @@ async function updateBackend(
       }),
     (value) =>
       value.Stacks?.[0]?.StackStatus === 'UPDATE_COMPLETE' &&
+      value.Stacks[0].StackId === target.stacks.backend &&
+      value.Stacks[0].RoleARN === target.serviceRoleArn &&
       Object.entries(selected).every(([key, expected]) =>
         value.Stacks[0].Parameters?.some(
           (item) =>
@@ -1060,8 +1305,13 @@ export async function importBaseline({
   expectedPending = 'none',
   transport,
   liveCheck,
+  allowNeonTransition = false,
 }) {
   validateTarget(target);
+  need(
+    typeof allowNeonTransition === 'boolean',
+    'Explicit Neon transition selection required.',
+  );
   need(
     /^[1-9][0-9]*$/.test(expectedAliasVersion),
     'Explicit expected baseline alias version is required.',
@@ -1072,7 +1322,11 @@ export async function importBaseline({
     manifest.scope === 'full' && manifest.origin === target.resources.origin,
     'Import requires complete actual-origin baseline.',
   );
-  const gate = await preflight({ target, transport });
+  const gate = await preflight({
+    target,
+    transport,
+    allowNeonTransition,
+  });
   const existing = await readState(transport, target, true);
   need(
     !existing ||
@@ -1098,6 +1352,7 @@ export async function importBaseline({
     schemaVersion: 1,
     operationId,
     kind: 'import',
+    ...(allowNeonTransition ? { allowNeonTransition: true } : {}),
     release: manifest.release,
     context: null,
     manifest,
@@ -1123,7 +1378,7 @@ export async function importBaseline({
     manifest.release,
     inventory,
   );
-  const accepted = await acceptance(liveCheck, target);
+  const accepted = await acceptance(liveCheck, target, manifest);
   await backend(transport, target, manifest, expectedAliasVersion);
   need(
     same(await verifyObjects(transport, target, manifest), controls),
@@ -1147,6 +1402,8 @@ export async function importBaseline({
       plan: gate.plan,
       quota: gate.quota,
       checkedAt: gate.checkedAt,
+      backendVariant: gate.backendVariant,
+      serviceRoleArn: gate.stacks.backend.RoleARN ?? null,
     },
   };
   const retained = await object(
@@ -1162,6 +1419,59 @@ export async function importBaseline({
     retained ? await readRecord(transport, target, manifest.release) : record,
     controls,
   );
+}
+
+export async function publishNeonDelivery({
+  root,
+  release,
+  runtimeConfig,
+  manifestSha256,
+  target,
+  context,
+  transport,
+  liveCheck,
+  allowNeonTransition = false,
+}) {
+  validateTarget(target);
+  validateContext(context);
+  need(
+    release === 'neon-' + context.runId + '-' + context.runAttempt,
+    'Neon release must match the selected packaging run.',
+  );
+  need(
+    typeof allowNeonTransition === 'boolean',
+    'Explicit Neon transition selection required.',
+  );
+  need(
+    typeof liveCheck === 'function',
+    'A Neon live acceptance checker is mandatory.',
+  );
+  const packaged = await verifyNeonRelease({
+    root,
+    release,
+    expectedSourceSha: context.sourceSha,
+    expectedRuntimeConfig: runtimeConfig,
+    expectedManifestSha256: manifestSha256,
+  });
+  validateStoredNeonRuntime({
+    target,
+    manifest: packaged.manifest,
+    body: await readFile(path.join(packaged.directory, 'backend/runtime.json')),
+  });
+  need(
+    [...fixedKeys].every((key) =>
+      packaged.manifest.objects.some((item) => item.key === key),
+    ),
+    'Full Neon release requires all fixed controls.',
+  );
+  return publishPackaged({
+    packaged,
+    target,
+    context,
+    transport,
+    allowNeonTransition,
+    liveCheck,
+  });
 }
 
 export async function publishDelivery({
@@ -1185,8 +1495,50 @@ export async function publishDelivery({
     origin: target.resources.origin,
     expectedEnvelopeSha256: boundHash,
   });
+  return publishPackaged({
+    packaged,
+    target,
+    context,
+    transport,
+    liveCheck,
+  });
+}
+
+async function publishPackaged({
+  packaged,
+  target,
+  context,
+  transport,
+  liveCheck,
+  allowNeonTransition = false,
+}) {
   const manifest = packaged.manifest;
-  const gate = await preflight({ target, transport });
+  const neon = manifest.kind === 'platypus-neon-release-candidate';
+  const backendArchive = neon
+    ? await readFile(path.join(packaged.directory, manifest.backend.archive))
+    : undefined;
+  if (neon)
+    need(
+      Buffer.from(sha256(backendArchive), 'hex').toString('base64') ===
+        manifest.backend.codeSha256,
+      'Neon backend ZIP differs from the selected release.',
+    );
+  const gate = await preflight({
+    target,
+    transport,
+    allowNeonTransition: neon && allowNeonTransition,
+  });
+  if (neon) {
+    need(
+      gate.backendVariant === 'neon' || allowNeonTransition === true,
+      'First Neon transition requires explicit selection.',
+    );
+  } else {
+    need(
+      gate.backendVariant === 'fixture',
+      'Fixture publisher cannot publish into a Neon backend stack.',
+    );
+  }
   const checkpoint = await readState(transport, target);
   const previous = await verifyCurrent(transport, target, checkpoint);
   need(manifest.release !== previous.release, 'Release is already current.');
@@ -1200,6 +1552,7 @@ export async function publishDelivery({
     schemaVersion: 1,
     operationId,
     kind: 'publish',
+    ...(neon ? { allowNeonTransition } : {}),
     release: manifest.release,
     context,
     manifest,
@@ -1213,6 +1566,11 @@ export async function publishDelivery({
     manifest.release,
     inventory,
   );
+  if (neon)
+    await immutable(transport, target, manifest.backend.key, backendArchive, {
+      ContentType: 'application/zip',
+      CacheControl: 'no-store',
+    });
   for (const item of manifest.objects.filter(
     (item) => !fixedKeys.has(item.key),
   ))
@@ -1232,6 +1590,8 @@ export async function publishDelivery({
     target,
     manifest,
     pending.value,
+    undefined,
+    neon && allowNeonTransition,
   );
   await publishControls(
     transport,
@@ -1241,7 +1601,7 @@ export async function publishDelivery({
     previous.controls,
     pending.value,
   );
-  const accepted = await acceptance(liveCheck, target);
+  const accepted = await acceptance(liveCheck, target, manifest);
   await backend(transport, target, manifest, observed.version);
   const controls = await verifyObjects(transport, target, manifest);
   const record = {
@@ -1262,9 +1622,47 @@ export async function publishDelivery({
       plan: gate.plan,
       quota: gate.quota,
       checkedAt: gate.checkedAt,
+      backendVariant: gate.backendVariant,
+      serviceRoleArn: gate.stacks.backend.RoleARN ?? null,
     },
   };
   return finish(transport, target, pending, record);
+}
+
+export function validatePendingManifest(plan, target) {
+  const manifest = plan?.manifest;
+  const neon = manifest?.kind === 'platypus-neon-release-candidate';
+  need(
+    plan?.schemaVersion === 1 &&
+      ['publish', 'recover', 'import'].includes(plan.kind) &&
+      manifest?.schemaVersion === 1 &&
+      manifest.project === project &&
+      manifest.release === plan.release &&
+      manifest.origin === target.resources.origin &&
+      Array.isArray(manifest.objects) &&
+      manifest.objects.length > 0 &&
+      (neon || manifest.scope === 'full'),
+    'Unknown or incompatible pending release manifest.',
+  );
+  releaseId(manifest.release);
+  if (neon) {
+    need(
+      ['publish', 'recover'].includes(plan.kind) &&
+        /^[a-f0-9]{40}$/.test(manifest.sourceSha ?? '') &&
+        !/^0+$/.test(manifest.sourceSha),
+      'Invalid pending Neon source or operation.',
+    );
+    validateContext(plan.context);
+    if (plan.kind === 'publish')
+      need(
+        manifest.sourceSha === plan.context.sourceSha &&
+          manifest.release ===
+            'neon-' + plan.context.runId + '-' + plan.context.runAttempt &&
+          typeof plan.allowNeonTransition === 'boolean',
+        'Pending Neon publication differs from its checked run.',
+      );
+  }
+  return manifest;
 }
 
 async function pendingPlan(transport, target, checkpoint, expectedPending) {
@@ -1286,6 +1684,7 @@ async function pendingPlan(transport, target, checkpoint, expectedPending) {
       same(plan.context, checkpoint.value.context),
     'Pending operation plan differs from checkpoint.',
   );
+  validatePendingManifest(plan, target);
   return plan;
 }
 
@@ -1295,10 +1694,15 @@ export async function reconcileDelivery({
   context,
   transport,
   liveCheck,
+  allowNeonTransition = false,
 }) {
   validateTarget(target);
   validateContext(context);
-  await preflight({ target, transport });
+  need(
+    typeof allowNeonTransition === 'boolean',
+    'Explicit Neon transition selection required.',
+  );
+  const gate = await preflight({ target, transport, allowNeonTransition });
   const checkpoint = await readState(transport, target);
   const plan = await pendingPlan(
     transport,
@@ -1306,6 +1710,11 @@ export async function reconcileDelivery({
     checkpoint,
     expectedPending,
   );
+  if (gate.stacks.backend.RoleARN === undefined)
+    need(
+      allowNeonTransition === true && plan.allowNeonTransition === true,
+      'Unassigned service role requires an explicitly reviewed bootstrap plan.',
+    );
   // Reconcile never changes alias or controls. It completes only an already accepted full old/new state.
   const candidates = [plan.release, checkpoint.value.previous?.release].filter(
     Boolean,
@@ -1369,7 +1778,7 @@ export async function reconcileDelivery({
         ),
         'Controls differ from completed release.',
       );
-      const accepted = await acceptance(liveCheck, target);
+      const accepted = await acceptance(liveCheck, target, record.manifest);
       need(
         same(
           await backend(
@@ -1445,11 +1854,6 @@ export async function recoverDelivery({
     );
     previous = { value: checkpoint.value.previous, ETag: checkpoint.ETag };
     candidate = plan.manifest;
-    need(
-      candidate?.scope === 'full' &&
-        candidate.origin === target.resources.origin,
-      'Unknown pending release graph.',
-    );
   } else need(expectedPending === 'none', 'No such pending operation.');
   const baseline = await readRecord(
     transport,
@@ -1470,7 +1874,13 @@ export async function recoverDelivery({
   );
   need(
     same(
-      configuration(target, record.manifest, record.backend.version, config),
+      configuration(
+        target,
+        record.manifest,
+        record.backend.version,
+        config,
+        await readBackendRuntime(transport, target, record.manifest),
+      ),
       record.backend,
     ),
     'Recovery version is not compatible with the actual origin/code/configuration.',
@@ -1530,6 +1940,7 @@ export async function recoverDelivery({
         known.manifest,
         alias.FunctionVersion,
         liveConfiguration,
+        await readBackendRuntime(transport, target, known.manifest),
       );
       if (known.observed && !same(observed, known.observed)) continue;
       startingManifest = known.manifest;
@@ -1577,7 +1988,7 @@ export async function recoverDelivery({
     actualControls,
     pending.value,
   );
-  await acceptance(liveCheck, target);
+  await acceptance(liveCheck, target, record.manifest);
   await backend(transport, target, record.manifest, record.backend.version);
   const controls = await verifyObjects(transport, target, record.manifest);
   // Original immutable completed record remains unchanged; fresh observations belong to this operation.

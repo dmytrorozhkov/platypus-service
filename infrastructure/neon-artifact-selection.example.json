@@ -1,0 +1,15 @@
+{
+  "repository": "dmytrorozhkov/platypus-service",
+  "repositoryId": "REPLACE_WITH_VERIFIED_REPOSITORY_ID",
+  "repositoryOwnerId": "REPLACE_WITH_VERIFIED_OWNER_ID",
+  "workflowPath": ".github/workflows/package-neon.yml",
+  "ref": "refs/heads/main",
+  "sourceSha": "REPLACE_WITH_SUCCESSFUL_PACKAGE_SOURCE_SHA",
+  "runId": "REPLACE_WITH_PACKAGE_RUN_ID",
+  "runAttempt": "REPLACE_WITH_PACKAGE_RUN_ATTEMPT",
+  "artifactId": "REPLACE_WITH_PACKAGE_ARTIFACT_ID",
+  "artifactDigest": "REPLACE_WITH_ARTIFACT_SHA256_WITHOUT_PREFIX",
+  "manifestSha256": "REPLACE_WITH_EXTERNALLY_RETAINED_MANIFEST_SHA256",
+  "release": "neon-REPLACE_RUN_ID-REPLACE_ATTEMPT",
+  "origin": "https://REPLACE.cloudfront.net"
+}

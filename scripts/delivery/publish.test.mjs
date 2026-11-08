@@ -14,7 +14,9 @@ import {
 import { verifyDeliveryBundle } from './bundle.mjs';
 import {
   importBaseline,
+  preflight,
   publishDelivery,
+  publishNeonDelivery,
   recoverDelivery,
   reconcileDelivery,
 } from './executor.mjs';
@@ -23,6 +25,8 @@ import {
   edgeTemplate,
   storageTemplate,
 } from '../aws/templates.mjs';
+import { neonBackendTemplate } from '../neon-aws/templates.mjs';
+import { syntheticNeonRelease } from '../neon-aws/synthetic-neon-release.mjs';
 
 const productionOrigin = 'https://dfailurefixture.cloudfront.net';
 const repository = 'dmytrorozhkov/platypus-service';
@@ -131,6 +135,7 @@ async function fixture(t, label = 'candidate') {
   for (const [name, body] of [
     ['lambda.js', 'export async function handler() {}\n'],
     ['ticket-application.js', 'export {};\n'],
+    ['ticket-query.js', 'export {};\n'],
     ['ticket-repository.js', 'export {};\n'],
     ['fixtures/tickets.json', '[]\n'],
     ['package.json', json({ private: true, type: 'module' })],
@@ -312,9 +317,12 @@ class FakeAws extends MemoryObjects {
   aliasVersion = '2';
   changes;
   requestFault;
+  runtimes = new Map();
 
   constructor(target, baseline) {
     super(target);
+    this.backendTemplate = backendTemplate();
+    this.backendRoleArn = target.serviceRoleArn;
     this.releases.set(baseline.release, baseline.manifest);
     this.versions.set('2', baseline.manifest);
     this.parameters = this.parametersFor(baseline.manifest);
@@ -337,18 +345,34 @@ class FakeAws extends MemoryObjects {
   configuration(version) {
     const manifest = this.versions.get(version);
     assert(manifest, 'Fake Lambda version must be explicitly seeded.');
+    const runtime = this.runtimes.get(manifest.release);
     return {
       Version: version,
       CodeSha256: manifest.backend.codeSha256,
-      Environment: { Variables: { ALLOWED_ORIGINS: productionOrigin } },
+      Environment: {
+        Variables: runtime
+          ? {
+              ALLOWED_ORIGINS: runtime.origin,
+              NEON_HOST: runtime.neonHost,
+              NEON_DATABASE: runtime.database,
+              NEON_USER: runtime.user,
+              NEON_CONFIRM_TARGET: runtime.neonHost + '/' + runtime.database,
+              NEON_PASSWORD_PARAMETER_ARN: runtime.passwordParameterArn,
+              NEON_PASSWORD_PARAMETER_VERSION: String(
+                runtime.passwordParameterVersion,
+              ),
+            }
+          : { ALLOWED_ORIGINS: productionOrigin },
+      },
       Description:
         'Platypus revision ' +
-        sha256(manifest.backend.sha256 + '\n' + productionOrigin),
+        (manifest.backend.backendRevision ??
+          sha256(manifest.backend.sha256 + '\n' + productionOrigin)),
       Runtime: 'nodejs24.x',
       Architectures: ['arm64'],
       Handler: 'lambda.handler',
       MemorySize: 256,
-      Timeout: 3,
+      Timeout: runtime ? 30 : 3,
       Role: `arn:aws:iam::${this.target.accountId}:role/platypus-test-lambda`,
       VpcConfig: {},
     };
@@ -405,7 +429,7 @@ class FakeAws extends MemoryObjects {
             {
               StackId: t.stacks[kind],
               StackStatus: 'UPDATE_COMPLETE',
-              RoleARN: kind === 'backend' ? t.serviceRoleArn : undefined,
+              RoleARN: kind === 'backend' ? this.backendRoleArn : undefined,
               Tags: [{ Key: 'Project', Value: project }],
               Outputs: Object.entries(outputValues).map(
                 ([OutputKey, OutputValue]) => ({ OutputKey, OutputValue }),
@@ -422,11 +446,12 @@ class FakeAws extends MemoryObjects {
       }
       case 'cloudformation:get-template':
         return {
-          TemplateBody: {
-            storage: storageTemplate,
-            backend: backendTemplate,
-            edge: edgeTemplate,
-          }[kind](),
+          TemplateBody:
+            kind === 'backend'
+              ? input.ChangeSetName && this.changes.TemplateBody
+                ? JSON.parse(this.changes.TemplateBody)
+                : structuredClone(this.backendTemplate)
+              : { storage: storageTemplate, edge: edgeTemplate }[kind](),
         };
       case 'cloudformation:list-stack-resources':
         return {
@@ -478,7 +503,13 @@ class FakeAws extends MemoryObjects {
           t.stacks.backend,
           'Publication must never update storage/edge.',
         );
-        assert.equal(input.UsePreviousTemplate, true);
+        if (input.TemplateBody) {
+          assert.equal(input.UsePreviousTemplate, undefined);
+          assert.deepEqual(
+            JSON.parse(input.TemplateBody),
+            neonBackendTemplate(),
+          );
+        } else assert.equal(input.UsePreviousTemplate, true);
         assert.equal(input.RoleARN, t.serviceRoleArn);
         this.changes = input;
         return {
@@ -506,6 +537,8 @@ class FakeAws extends MemoryObjects {
               ['Version', 'AWS::Lambda::Version', 'CodeSha256'],
               ['LiveAlias', 'AWS::Lambda::Alias', 'FunctionVersion'],
             ];
+        if (this.changes.TemplateBody)
+          changed.push(['ExecutionRole', 'AWS::IAM::Role', 'Policies']);
         return {
           StackId: t.stacks.backend,
           ChangeSetName: this.changes.ChangeSetName,
@@ -530,6 +563,9 @@ class FakeAws extends MemoryObjects {
       }
       case 'cloudformation:execute-change-set': {
         assert.equal(input.StackName, t.stacks.backend);
+        this.backendRoleArn = this.changes.RoleARN;
+        if (this.changes.TemplateBody)
+          this.backendTemplate = JSON.parse(this.changes.TemplateBody);
         for (const item of this.changes.Parameters)
           if (!item.UsePreviousValue)
             this.parameters[item.ParameterKey] = item.ParameterValue;
@@ -641,6 +677,7 @@ test('full publication locks first, verifies live behavior and only then complet
         origin: productionOrigin,
         functionUrl: s.target.resources.functionUrl,
         bucketOrigin: 'https://' + s.target.resources.bucketDomain,
+        runtimeVariant: 'fixture',
       });
       s.transport.calls.push({ operation: 'live-acceptance' });
       checked = true;
@@ -1284,4 +1321,342 @@ test('a new explicit reconciliation attempt survives an earlier reconciliation c
     ),
     false,
   );
+});
+
+test('preflight binds runtime variant and explicitly limited role bootstrap', async (t) => {
+  const s = await scenario(t);
+  const original = s.transport.request.bind(s.transport);
+  let variant = 'fixture';
+  let role = 'unassigned';
+  let alteredTemplate = false;
+
+  s.transport.request = async (service, operation, input = {}) => {
+    const response = await original(service, operation, input);
+    if (
+      service === 'cloudformation' &&
+      input.StackName === s.target.stacks.backend
+    ) {
+      if (operation === 'describe-stacks') {
+        if (role === 'unassigned') {
+          delete response.Stacks[0].RoleARN;
+        } else {
+          response.Stacks[0].RoleARN =
+            s.target.serviceRoleArn + (role === 'foreign' ? '-other' : '');
+        }
+      }
+      if (operation === 'get-template') {
+        response.TemplateBody =
+          variant === 'neon' ? neonBackendTemplate() : backendTemplate();
+        if (alteredTemplate)
+          response.TemplateBody.Resources.Function.Properties.Timeout = 900;
+      }
+    }
+    return response;
+  };
+
+  const input = { target: s.target, transport: s.transport };
+
+  await assert.rejects(
+    preflight(input),
+    /reviewed CloudFormation service role/,
+  );
+
+  const bootstrap = await preflight({
+    ...input,
+    allowNeonTransition: true,
+  });
+  assert.equal(bootstrap.backendVariant, 'fixture');
+  assert.equal(bootstrap.stacks.backend.RoleARN, undefined);
+
+  variant = 'neon';
+  await assert.rejects(
+    preflight({ ...input, allowNeonTransition: true }),
+    /reviewed CloudFormation service role/,
+  );
+
+  role = 'assigned';
+  const established = await preflight(input);
+  assert.equal(established.backendVariant, 'neon');
+  assert.equal(established.stacks.backend.RoleARN, s.target.serviceRoleArn);
+
+  role = 'foreign';
+  await assert.rejects(
+    preflight({ ...input, allowNeonTransition: true }),
+    /reviewed CloudFormation service role/,
+  );
+
+  role = 'assigned';
+  alteredTemplate = true;
+  await assert.rejects(preflight(input), /Stack template drift/);
+
+  alteredTemplate = false;
+  await assert.rejects(s.publish(), /Fixture publisher/);
+  assert.equal(s.transport.mutations().length, 0);
+});
+
+test('initial baseline registration explicitly permits an unassigned fixture role', async (t) => {
+  const baseline = await fixture(t, 'bootstrap-baseline');
+  const target = targetFixture();
+  const transport = new FakeAws(target, baseline);
+
+  for (const item of baseline.manifest.objects)
+    transport.seed(
+      item.key,
+      await readFile(path.join(baseline.directory, item.file)),
+      { ContentType: item.contentType, CacheControl: item.cacheControl },
+    );
+
+  const original = transport.request.bind(transport);
+  transport.request = async (service, operation, input = {}) => {
+    const response = await original(service, operation, input);
+    if (
+      service === 'cloudformation' &&
+      operation === 'describe-stacks' &&
+      input.StackName === target.stacks.backend
+    )
+      delete response.Stacks[0].RoleARN;
+    return response;
+  };
+
+  const input = {
+    directory: baseline.directory,
+    target,
+    expectedAliasVersion: '2',
+    transport,
+    liveCheck: async () => ({ success: true, fixture: 'baseline' }),
+  };
+
+  await assert.rejects(
+    importBaseline(input),
+    /reviewed CloudFormation service role/,
+  );
+  assert.equal(transport.mutations().length, 0);
+
+  transport.fault = (call) => {
+    if (
+      call.input.Key === '_releases/delivery/current.json' &&
+      JSON.parse(call.input.Body).status === 'completed'
+    )
+      throw cloudError('PreconditionFailed');
+  };
+  await assert.rejects(
+    importBaseline({ ...input, allowNeonTransition: true }),
+    /PreconditionFailed/,
+  );
+  const pending = transport.state();
+  assert.equal(pending.status, 'pending');
+  transport.fault = undefined;
+  transport.calls = [];
+  const reconciliation = {
+    expectedPending: pending.operationId,
+    target,
+    context: baseline.context,
+    transport,
+    liveCheck: input.liveCheck,
+  };
+  await assert.rejects(
+    reconcileDelivery(reconciliation),
+    /reviewed CloudFormation service role/,
+  );
+  assert.equal(transport.mutations().length, 0);
+  await assert.rejects(
+    reconcileDelivery({ ...reconciliation, allowNeonTransition: 'true' }),
+    /Explicit Neon transition/,
+  );
+  await reconcileDelivery({ ...reconciliation, allowNeonTransition: true });
+  assert.equal(transport.state().status, 'completed');
+
+  const record = JSON.parse(
+    transport.objects
+      .get('_releases/delivery/records/' + baseline.release + '.json')
+      .body.toString('utf8'),
+  );
+  assert.equal(record.preflight.backendVariant, 'fixture');
+  assert.equal(record.preflight.serviceRoleArn, null);
+  assert.equal(
+    transport.calls.some((call) =>
+      ['create-change-set', 'execute-change-set'].includes(call.operation),
+    ),
+    false,
+  );
+});
+
+test('complete Neon transition, routine publication, reconciliation and retained recovery', async (t) => {
+  const s = await scenario(t);
+  const first = await syntheticNeonRelease(t, s.target, String(nextRun++));
+  const second = await syntheticNeonRelease(t, s.target, String(nextRun++), 2);
+  for (const candidate of [first, second]) {
+    s.transport.releases.set(candidate.release, candidate.manifest);
+    s.transport.runtimes.set(candidate.release, candidate.runtimeConfig);
+  }
+  s.transport.backendRoleArn = undefined;
+  const liveCheck = async ({ runtimeVariant, origin }) => {
+    assert.equal(s.transport.state().status, 'pending');
+    return runtimeVariant === 'neon'
+      ? { success: true, kind: 'platypus-neon-live-check', origin }
+      : { success: true };
+  };
+  const publish = (candidate, extra = {}) =>
+    publishNeonDelivery({
+      root: candidate.root,
+      release: candidate.release,
+      runtimeConfig: candidate.runtimeConfig,
+      manifestSha256: candidate.manifestSha256,
+      target: s.target,
+      context: candidate.context,
+      transport: s.transport,
+      liveCheck,
+      ...extra,
+    });
+  await assert.rejects(publish(first), /reviewed CloudFormation service role/);
+  assert.equal(s.transport.mutations().length, 0);
+  await publish(first, { allowNeonTransition: true });
+  assert.equal(s.transport.backendRoleArn, s.target.serviceRoleArn);
+  assert.equal(s.transport.aliasVersion, '3');
+  assert.equal(s.transport.state().release, first.release);
+  assert.equal(s.transport.parameters.NeonPasswordParameterVersion, '1');
+  assert.deepEqual(s.transport.backendTemplate, neonBackendTemplate());
+  const archive = s.transport.objects.get(first.manifest.backend.key);
+  assert.equal(
+    Buffer.from(sha256(archive.body), 'hex').toString('base64'),
+    first.manifest.backend.codeSha256,
+  );
+  assert.equal(archive.ContentType, 'application/zip');
+  const firstRecordKey = `_releases/delivery/records/${first.release}.json`;
+  const firstRecord = Buffer.from(s.transport.objects.get(firstRecordKey).body);
+  assert.equal(
+    JSON.parse(firstRecord).context.sourceSha,
+    first.context.sourceSha,
+  );
+
+  s.transport.fault = (call) => {
+    if (
+      call.input.Key === '_releases/delivery/current.json' &&
+      JSON.parse(call.input.Body).status === 'completed'
+    )
+      throw cloudError('PreconditionFailed');
+  };
+  await assert.rejects(publish(second), /PreconditionFailed/);
+  const pending = s.transport.state();
+  assert.equal(pending.status, 'pending');
+  assert.equal(s.transport.aliasVersion, '4');
+  assert.equal(s.transport.parameters.NeonPasswordParameterVersion, '2');
+  assert.equal(s.transport.changes.UsePreviousTemplate, true);
+  s.transport.fault = undefined;
+  const reconciliation = {
+    expectedPending: pending.operationId,
+    target: s.target,
+    context: { ...second.context, runAttempt: '2' },
+    transport: s.transport,
+  };
+  s.transport.calls = [];
+  await assert.rejects(
+    reconcileDelivery({
+      ...reconciliation,
+      liveCheck: async () => ({ success: true }),
+    }),
+    /mixed|acceptance/,
+  );
+  assert.equal(s.transport.state().status, 'pending');
+  assert.equal(s.transport.mutations().length, 0);
+  await reconcileDelivery({ ...reconciliation, liveCheck });
+  assert.equal(s.transport.state().release, second.release);
+  assert.equal(
+    s.transport.calls.some((call) =>
+      ['create-change-set', 'execute-change-set'].includes(call.operation),
+    ),
+    false,
+  );
+
+  await recoverDelivery({
+    release: first.release,
+    expectedPending: 'none',
+    target: s.target,
+    context: { ...second.context, runAttempt: '3' },
+    transport: s.transport,
+    liveCheck,
+  });
+  assert.equal(s.transport.state().release, first.release);
+  assert.equal(s.transport.aliasVersion, '3');
+  assert.equal(s.transport.parameters.RollbackVersion, '3');
+  assert.deepEqual(s.transport.objects.get(firstRecordKey).body, firstRecord);
+  await recoverDelivery({
+    release: s.baseline.release,
+    expectedPending: 'none',
+    target: s.target,
+    context: { ...second.context, runAttempt: '4' },
+    transport: s.transport,
+    liveCheck,
+  });
+  assert.equal(s.transport.state().release, s.baseline.release);
+  assert.equal(s.transport.aliasVersion, '2');
+  assert.equal(s.transport.parameters.NeonPasswordParameterVersion, '2');
+  assert.deepEqual(s.transport.backendTemplate, neonBackendTemplate());
+});
+
+test('failed Neon live acceptance stays pending and explicitly restores the fixture baseline', async (t) => {
+  const s = await scenario(t);
+  const candidate = await syntheticNeonRelease(t, s.target, String(nextRun++));
+  s.transport.releases.set(candidate.release, candidate.manifest);
+  s.transport.runtimes.set(candidate.release, candidate.runtimeConfig);
+  await assert.rejects(
+    publishNeonDelivery({
+      root: candidate.root,
+      release: candidate.release,
+      runtimeConfig: candidate.runtimeConfig,
+      manifestSha256: candidate.manifestSha256,
+      target: s.target,
+      context: candidate.context,
+      transport: s.transport,
+      allowNeonTransition: true,
+      liveCheck: async () => ({ success: true }),
+    }),
+    /Neon-specific/,
+  );
+  const pending = s.transport.state();
+  assert.equal(pending.status, 'pending');
+  assert.equal(
+    s.transport.objects.has(
+      `_releases/delivery/records/${candidate.release}.json`,
+    ),
+    false,
+  );
+  await recoverDelivery({
+    release: s.baseline.release,
+    expectedPending: pending.operationId,
+    target: s.target,
+    context: { ...candidate.context, runAttempt: '2' },
+    transport: s.transport,
+    liveCheck: async ({ runtimeVariant }) => {
+      assert.equal(runtimeVariant, 'fixture');
+      return { success: true };
+    },
+  });
+  assert.equal(s.transport.state().status, 'completed');
+  assert.equal(s.transport.state().release, s.baseline.release);
+  assert.equal(s.transport.aliasVersion, '2');
+});
+
+test('reconciliation cannot add bootstrap authorization to an existing ordinary plan', async (t) => {
+  const s = await scenario(t);
+  s.transport.fault = (call) => {
+    if (call.input.Key === 'index.html') throw cloudError('PreconditionFailed');
+  };
+  await assert.rejects(s.publish(), /PreconditionFailed/);
+  const pending = s.transport.state();
+  s.transport.fault = undefined;
+  s.transport.backendRoleArn = undefined;
+  s.transport.calls = [];
+  await assert.rejects(
+    reconcileDelivery({
+      expectedPending: pending.operationId,
+      target: s.target,
+      context: s.candidate.context,
+      transport: s.transport,
+      allowNeonTransition: true,
+      liveCheck: async () => ({ success: true }),
+    }),
+    /explicitly reviewed bootstrap plan/,
+  );
+  assert.equal(s.transport.mutations().length, 0);
 });

@@ -73,7 +73,14 @@ test('a real full bundle binds exact checked context, ZIP and extracted files wi
   );
   assert(verified.totalBytes < DELIVERY_BUNDLE_LIMIT);
   assert.equal(verified.manifest.scope, 'full');
-  assert.equal(Object.keys(verified.manifest.backend.files).length, 5);
+  assert.deepEqual(Object.keys(verified.manifest.backend.files).sort(), [
+    'fixtures/tickets.json',
+    'lambda.js',
+    'package.json',
+    'ticket-application.js',
+    'ticket-query.js',
+    'ticket-repository.js',
+  ]);
   for (const name of [
     'backend.zip',
     'manifest.json',

@@ -1,7 +1,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('migrate', 'seed', 'check', 'serve')]
+  [ValidateSet('migrate', 'seed', 'check', 'serve', 'migrate-large', 'seed-large', 'check-large', 'serve-large')]
   [string]$Action
 )
 
@@ -22,6 +22,8 @@ $environmentChanges = @{
   PGPASSWORD = $null
   PGSSLMODE = 'disable'
   PGOPTIONS = $null
+  PORT = $null
+  ALLOWED_ORIGINS = $null
 }
 
 try {
@@ -33,6 +35,10 @@ try {
     seed = 'db:seed'
     check = 'db:check'
     serve = 'start:server:postgres'
+    'migrate-large' = 'db:large:migrate'
+    'seed-large' = 'db:large:seed'
+    'check-large' = 'db:large:check'
+    'serve-large' = 'start:server:postgres'
   }
   $command = $commands[$Action]
   if ($package.name -ne '@platypus/workspace' -or
@@ -48,7 +54,12 @@ try {
   if (!(Test-Path -LiteralPath $commandInterpreter -PathType Leaf)) {
     throw 'The Windows command interpreter is unavailable.'
   }
-  if ($Action -eq 'serve') { $environmentChanges.PGUSER = 'platypus_app' }
+  if ($Action -in @('serve', 'serve-large')) { $environmentChanges.PGUSER = 'platypus_app' }
+  if ($Action.EndsWith('-large')) { $environmentChanges.PGDATABASE = 'platypus_service_large' }
+  if ($Action -eq 'serve-large') {
+    $environmentChanges.PORT = '3001'
+    $environmentChanges.ALLOWED_ORIGINS = 'http://localhost:5176'
+  }
 
   $startInfo = New-Object System.Diagnostics.ProcessStartInfo
   $startInfo.FileName = $commandInterpreter
@@ -64,7 +75,7 @@ try {
     }
   }
 
-  Write-Host ('Local PostgreSQL: {0} as {1} at 127.0.0.1:5432/platypus_service.' -f $Action, $environmentChanges.PGUSER)
+  Write-Host ('Local PostgreSQL: {0} as {1} at 127.0.0.1:5432/{2}.' -f $Action, $environmentChanges.PGUSER, $environmentChanges.PGDATABASE)
   $password = Read-Host -Prompt ('Password for ' + $environmentChanges.PGUSER) -AsSecureString
   if ($password.Length -eq 0) { throw 'An empty password is unsupported.' }
 

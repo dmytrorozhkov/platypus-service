@@ -1,0 +1,407 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Opt-in read-only PostgreSQL event handler with runtime-pinned encrypted parameter access and retained alias rollback.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "infrastructure/README.md",
+          "has": "Bootstrap, ownership, release and deletion constraints",
+          "scope": "shared"
+        },
+        {
+          "at": "docs/architecture/090-neon-aws-preparation-contract.md",
+          "has": "Offline preparation, learner-only publication, exact runtime and secret-version binding",
+          "scope": "shared"
+        }
+      ],
+      "must": [
+        "Update the existing backend stack; preserve function logical identity and signed CloudFront origin.",
+        "Only learner-created Standard SecureString under AWS-managed alias/aws/ssm; no secret value in template or environment.",
+        "Use eu-north-1, exact same-account parameter and the accepted account-cap-ten mode; validate target before publication."
+      ]
+    }
+  },
+  "Parameters": {
+    "PackageBucket": {
+      "Type": "String",
+      "Description": "Artifact bucket from the storage stack.",
+      "AllowedPattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+    },
+    "PackageKey": {
+      "Type": "String",
+      "Description": "Immutable reviewed backend ZIP key.",
+      "AllowedPattern": "^_deploy/backend/[a-z0-9-]{1,48}\\.zip$"
+    },
+    "PackageSha256": {
+      "Type": "String",
+      "Description": "Base64 SHA-256 of the actual ZIP.",
+      "AllowedPattern": "^[A-Za-z0-9+/]{43}=$"
+    },
+    "AllowedOrigin": {
+      "Type": "String",
+      "Description": "Exact reviewed CloudFront HTTPS origin; no bootstrap origin for this opt-in runtime.",
+      "AllowedPattern": "^https://d[a-z0-9]{1,62}\\.cloudfront\\.net$"
+    },
+    "BackendRevision": {
+      "Type": "String",
+      "Description": "SHA-256 binds exact ZIP and canonical runtime config including account, origin, pooled endpoint and pinned parameter version.",
+      "AllowedPattern": "^[a-f0-9]{64}$"
+    },
+    "ConcurrencyMode": {
+      "Type": "String",
+      "Description": "No default. reserved-two needs available quota; shared account-cap-five or account-cap-ten needs explicit acceptance and fresh matching quota evidence.",
+      "AllowedValues": ["account-cap-ten"]
+    },
+    "RollbackVersion": {
+      "Type": "String",
+      "Description": "Existing version of this same function for alias-only rollback; empty selects this revision.",
+      "Default": "",
+      "AllowedPattern": "^$|^[1-9][0-9]*$"
+    },
+    "NeonHost": {
+      "Type": "String",
+      "Description": "Confirmed Frankfurt pooled hostname only; no URI or port.",
+      "AllowedPattern": "^ep-[a-z0-9]+(?:-[a-z0-9]+)*-pooler\\.(?:c-[1-9][0-9]*\\.)?eu-central-1\\.aws\\.neon\\.tech$"
+    },
+    "NeonDatabase": {
+      "Type": "String",
+      "AllowedValues": ["neondb"],
+      "Description": "Verified imported database."
+    },
+    "NeonUser": {
+      "Type": "String",
+      "AllowedValues": ["platypus_app"],
+      "Description": "Existing restricted read-only application role; never the owner."
+    },
+    "NeonPasswordParameterVersion": {
+      "Type": "Number",
+      "MinValue": 1,
+      "MaxValue": 9007199254740991,
+      "Description": "Explicit immutable parameter version; never latest or a label."
+    }
+  },
+  "Conditions": {
+    "UseReservedTwo": {
+      "Fn::Equals": [
+        {
+          "Ref": "ConcurrencyMode"
+        },
+        "reserved-two"
+      ]
+    },
+    "UseRollback": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "RollbackVersion"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Own the log group before invocation so the execution role needs no CreateLogGroup permission.",
+          "must": [
+            "Seven-day retention; no ticket bodies or credentials in logs.",
+            "Delete this temporary diagnostic group during explicit teardown; no application records belong here."
+          ]
+        }
+      },
+      "Properties": {
+        "RetentionInDays": 7,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      },
+      "DeletionPolicy": "Delete",
+      "UpdateReplacePolicy": "Delete"
+    },
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Keep existing role/log permissions and add one named GetParameter operation; same-account aws/ssm provides default key access.",
+          "must": [
+            "Only the exact production password parameter may be read; no list, history, writes, wildcard retrieval or customer-managed key permissions.",
+            "Keep the documented Lambda service trust unchanged; actual SCP/IAM/KMS availability must be verified before publication."
+          ]
+        }
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "WriteOnlyOwnLogs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                  "Resource": {
+                    "Fn::GetAtt": ["Logs", "Arn"]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "PolicyName": "ReadOnlyExactNeonPassword",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "ReadOnlyExactNeonPassword",
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:eu-north-1:${AWS::AccountId}:parameter/platypus-service/production/neon/password"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "Function": {
+      "Type": "AWS::Lambda::Function",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "No HTTP listener/VPC/NAT or new database. Lazy verified pooled TLS reads reuse an initialized bounded pool across warm invocations.",
+          "must": [
+            "No password or dynamic secret reference in the environment; AWS_REGION is provided by Lambda.",
+            "Pool max two; database operations at most eight seconds, secret request at most three seconds, total request at most 25 seconds and bounded by Lambda remaining time.",
+            "Only SELECT role and parameterized bounded reads; no fixture fallback.",
+            "Preserve explicit accepted account-cap-ten choice, runtime architecture, handler identity and stack-owned logs."
+          ]
+        }
+      },
+      "Properties": {
+        "Runtime": "nodejs24.x",
+        "Architectures": ["arm64"],
+        "Handler": "lambda.handler",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "EphemeralStorage": {
+          "Size": 512
+        },
+        "Role": {
+          "Fn::GetAtt": ["ExecutionRole", "Arn"]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "PackageBucket"
+          },
+          "S3Key": {
+            "Ref": "PackageKey"
+          }
+        },
+        "Description": {
+          "Fn::Sub": "Platypus revision ${BackendRevision}"
+        },
+        "Environment": {
+          "Variables": {
+            "ALLOWED_ORIGINS": {
+              "Ref": "AllowedOrigin"
+            },
+            "NEON_HOST": {
+              "Ref": "NeonHost"
+            },
+            "NEON_DATABASE": {
+              "Ref": "NeonDatabase"
+            },
+            "NEON_USER": {
+              "Ref": "NeonUser"
+            },
+            "NEON_CONFIRM_TARGET": {
+              "Fn::Sub": "${NeonHost}/neondb"
+            },
+            "NEON_PASSWORD_PARAMETER_ARN": {
+              "Fn::Sub": "arn:${AWS::Partition}:ssm:eu-north-1:${AWS::AccountId}:parameter/platypus-service/production/neon/password"
+            },
+            "NEON_PASSWORD_PARAMETER_VERSION": {
+              "Ref": "NeonPasswordParameterVersion"
+            }
+          }
+        },
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "Logs"
+          }
+        },
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "UseReservedTwo",
+            2,
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "platypus-service"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "Version": {
+      "Type": "AWS::Lambda::Version",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Replacement snapshots bundled code and nonsecret configuration including the pinned parameter version; retain earlier versions for deliberate rollback.",
+          "must": [
+            "Change BackendRevision whenever ZIP or any runtime configuration changes.",
+            "Retain the existing logical identity, retained versions and stack-managed alias rollback.",
+            "An old Lambda version still needs a compatible database password/SSM version; alias rollback alone cannot undo credential rotation."
+          ]
+        }
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "CodeSha256": {
+          "Ref": "PackageSha256"
+        },
+        "Description": {
+          "Fn::Sub": "Revision ${BackendRevision}"
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "LiveAlias": {
+      "Type": "AWS::Lambda::Alias",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "A stable alias keeps the URL unchanged and supports rollback through stack parameters without out-of-band alias drift.",
+          "must": [
+            "RollbackVersion must be verified as a retained version of this function."
+          ]
+        }
+      },
+      "Properties": {
+        "Name": "live",
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "FunctionVersion": {
+          "Fn::If": [
+            "UseRollback",
+            {
+              "Ref": "RollbackVersion"
+            },
+            {
+              "Fn::GetAtt": ["Version", "Version"]
+            }
+          ]
+        }
+      }
+    },
+    "FunctionUrl": {
+      "Type": "AWS::Lambda::Url",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Only signed origin requests reach the read-only API; edge stack owns distribution-scoped invoke grants.",
+          "must": [
+            "No NONE auth or duplicate CORS settings.",
+            "URL qualifier is the stable alias name."
+          ]
+        }
+      },
+      "Properties": {
+        "AuthType": "AWS_IAM",
+        "InvokeMode": "BUFFERED",
+        "TargetFunctionArn": {
+          "Ref": "Function"
+        },
+        "Qualifier": "live"
+      },
+      "DependsOn": "LiveAlias"
+    }
+  },
+  "Outputs": {
+    "FunctionArn": {
+      "Description": "Unqualified owned function ARN.",
+      "Value": {
+        "Fn::GetAtt": ["Function", "Arn"]
+      }
+    },
+    "FunctionName": {
+      "Description": "Owned function name for checks and teardown.",
+      "Value": {
+        "Ref": "Function"
+      }
+    },
+    "AliasArn": {
+      "Description": "Live alias ARN for distribution permissions.",
+      "Value": {
+        "Ref": "LiveAlias"
+      }
+    },
+    "Version": {
+      "Description": "Published revision version, even when live alias is rolled back.",
+      "Value": {
+        "Fn::GetAtt": ["Version", "Version"]
+      }
+    },
+    "FunctionUrl": {
+      "Description": "Signed API origin URL.",
+      "Value": {
+        "Fn::GetAtt": ["FunctionUrl", "FunctionUrl"]
+      }
+    },
+    "LogGroup": {
+      "Description": "Owned seven-day log group.",
+      "Value": {
+        "Ref": "Logs"
+      }
+    }
+  }
+}

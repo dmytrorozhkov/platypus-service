@@ -159,6 +159,7 @@ export async function prepareRelease({
     const packageFiles = [
       'lambda.js',
       'ticket-application.js',
+      'ticket-query.js',
       'ticket-repository.js',
       'fixtures/tickets.json',
     ];

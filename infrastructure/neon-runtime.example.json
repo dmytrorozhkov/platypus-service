@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "platypus-neon-runtime",
+  "region": "eu-north-1",
+  "accountId": "000000000000",
+  "origin": "https://d2p7y3iystcl60.cloudfront.net",
+  "neonHost": "ep-noisy-smoke-b9rsyiia-pooler.c-7.eu-central-1.aws.neon.tech",
+  "database": "neondb",
+  "user": "platypus_app",
+  "passwordParameterArn": "arn:aws:ssm:eu-north-1:000000000000:parameter/platypus-service/production/neon/password",
+  "passwordParameterVersion": 1
+}

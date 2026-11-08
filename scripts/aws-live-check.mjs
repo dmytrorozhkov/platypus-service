@@ -2,15 +2,20 @@ import assert from 'node:assert/strict';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkNeonApi } from './neon-aws/live-api.mjs';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const options = {};
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index];
   assert.ok(
-    ['--origin', '--bucket-origin', '--function-url', '--timeout-ms'].includes(
-      key,
-    ),
+    [
+      '--origin',
+      '--bucket-origin',
+      '--function-url',
+      '--timeout-ms',
+      '--runtime-variant',
+    ].includes(key),
     'Unsupported argument.',
   );
   assert.ok(process.argv[index + 1], 'Argument value is missing.');
@@ -43,6 +48,17 @@ async function run() {
     );
     return;
   }
+  const runtimeVariant = options['--runtime-variant'] ?? 'fixture';
+  assert(
+    ['fixture', 'neon'].includes(runtimeVariant),
+    'Unknown runtime variant.',
+  );
+  const neon = runtimeVariant === 'neon';
+  if (neon)
+    assert(
+      options['--function-url'],
+      'Neon acceptance requires the protected Function URL.',
+    );
   const origin = httpsOrigin(
     options['--origin'],
     /^d[a-z0-9]+\.cloudfront\.net$/,
@@ -69,6 +85,8 @@ async function run() {
   const evidenceDirectory = path.join(projectRoot, '.local/evidence');
   await mkdir(evidenceDirectory, { recursive: true });
   const evidence = {
+    kind: neon ? 'platypus-neon-live-check' : 'platypus-fixture-live-check',
+    runtimeVariant,
     origin,
     bucketOrigin,
     functionOrigin,
@@ -127,26 +145,34 @@ async function run() {
     );
     assert.deepEqual(await health.json(), { status: 'ok' });
     noStore(health);
-    const ticketsResponse = await request(origin + '/api/tickets');
-    assert.equal(ticketsResponse.status, 200);
-    noStore(ticketsResponse);
-    const tickets = await ticketsResponse.json();
-    const fixtures = JSON.parse(
-      await readFile(
-        path.join(projectRoot, 'apps/server/src/fixtures/tickets.json'),
-        'utf8',
-      ),
-    );
-    assert.equal(tickets.total, 25);
-    assert.equal(tickets.items.length, 25);
-    assert.deepEqual(
-      tickets.items,
-      fixtures,
-      'Cloud tickets must preserve all fixture IDs and fields.',
-    );
-    passed(
-      'HTTPS health and ticket API return no-store responses and all 25 exact fictional fixtures.',
-    );
+    let neonPages;
+    if (neon) {
+      neonPages = await checkNeonApi({ origin, request, noStore });
+      passed(
+        'Neon paged API verifies 100000 imported tickets, unique bounded pages, filtering, warm access and safe refusal boundaries.',
+      );
+    } else {
+      const ticketsResponse = await request(origin + '/api/tickets');
+      assert.equal(ticketsResponse.status, 200);
+      noStore(ticketsResponse);
+      const tickets = await ticketsResponse.json();
+      const fixtures = JSON.parse(
+        await readFile(
+          path.join(projectRoot, 'apps/server/src/fixtures/tickets.json'),
+          'utf8',
+        ),
+      );
+      assert.equal(tickets.total, 25);
+      assert.equal(tickets.items.length, 25);
+      assert.deepEqual(
+        tickets.items,
+        fixtures,
+        'Cloud tickets must preserve all fixture IDs and fields.',
+      );
+      passed(
+        'HTTPS health and ticket API return no-store responses and all 25 exact fictional fixtures.',
+      );
+    }
 
     const configResponse = await request(origin + '/runtime-config.json');
     assert.equal(configResponse.status, 200);
@@ -197,9 +223,12 @@ async function run() {
     assert.equal((await request(bucketOrigin + '/index.html')).status, 403);
     if (functionOrigin)
       assert.equal((await request(functionOrigin + '/api/health')).status, 403);
-    const badOrigin = await request(origin + '/api/tickets', {
-      headers: { Origin: 'https://untrusted.example' },
-    });
+    const badOrigin = await request(
+      origin + (neon ? '/api/tickets/query' : '/api/tickets'),
+      {
+        headers: { Origin: 'https://untrusted.example' },
+      },
+    );
     assert.equal(badOrigin.status, 403);
     noStore(badOrigin);
     passed(
@@ -286,8 +315,79 @@ async function run() {
         ),
         'Expected generated remoteEntry request: ' + app,
       );
-    assert.match(await page.locator('tbody tr').first().innerText(), /PS-1001/);
-    assert.match(await page.locator('tbody tr').last().innerText(), /PS-1025/);
+    if (neon) {
+      const numbers = () =>
+        page.locator('.ps-support tbody tr td:first-child').allTextContents();
+      const expected = (result) => result.items.map((item) => item.number);
+      assert.deepEqual(
+        (await numbers()).map((item) => item.trim()),
+        expected(neonPages.first),
+      );
+      await page
+        .getByText('100000 matching tickets', { exact: false })
+        .waitFor();
+      async function change(action, selected) {
+        const response = page.waitForResponse(
+          (value) =>
+            value.url().startsWith(origin + '/api/tickets/query') && value.ok(),
+        );
+        const [loaded] = await Promise.all([response, action()]);
+        assert.deepEqual(await loaded.json(), selected);
+        await page.waitForFunction(
+          (expectedNumbers) =>
+            JSON.stringify(
+              Array.from(
+                globalThis.document.querySelectorAll(
+                  '.ps-support tbody tr td:first-child',
+                ),
+                (cell) => cell.textContent.trim(),
+              ),
+            ) === JSON.stringify(expectedNumbers),
+          expected(selected),
+        );
+        assert.deepEqual(
+          (await numbers()).map((item) => item.trim()),
+          expected(selected),
+        );
+      }
+      await change(
+        () =>
+          page.getByRole('button', { name: 'Next page', exact: true }).click(),
+        neonPages.second,
+      );
+      await change(
+        () =>
+          page.getByLabel('Rows per page', { exact: true }).selectOption('100'),
+        neonPages.large,
+      );
+      await change(
+        () =>
+          page.getByLabel('Rows per page', { exact: true }).selectOption('25'),
+        neonPages.first,
+      );
+      await change(
+        () => page.getByLabel('Status', { exact: true }).selectOption('New'),
+        neonPages.filtered,
+      );
+      await page
+        .getByText(neonPages.filtered.total + ' matching tickets', {
+          exact: false,
+        })
+        .waitFor();
+      await change(
+        () => page.getByLabel('Status', { exact: true }).selectOption(''),
+        neonPages.first,
+      );
+    } else {
+      assert.match(
+        await page.locator('tbody tr').first().innerText(),
+        /PS-1001/,
+      );
+      assert.match(
+        await page.locator('tbody tr').last().innerText(),
+        /PS-1025/,
+      );
+    }
     for (let index = 0; index < 2; index++) {
       for (const [, heading] of headings) {
         await page.getByRole('link', { name: heading, exact: true }).click();
@@ -309,11 +409,15 @@ async function run() {
       fullPage: true,
     });
     passed(
-      'Three direct routes refresh correctly, all generated remotes load, 25 rows render and repeated navigation cleans previous roots.',
+      neon
+        ? 'Three routes and refresh work; Neon pages, page sizes and filters match the API; repeated navigation cleans previous roots.'
+        : 'Three direct routes refresh correctly, all generated remotes load, 25 rows render and repeated navigation cleans previous roots.',
     );
 
     controlledFailure = true;
-    await page.route(origin + '/api/tickets', (route) =>
+    const ticketRoute =
+      origin + (neon ? '/api/tickets/query*' : '/api/tickets');
+    await page.route(ticketRoute, (route) =>
       route.fulfill({
         status: 503,
         contentType: 'application/json',
@@ -324,12 +428,14 @@ async function run() {
     await page
       .getByRole('heading', { name: 'Tickets are unavailable', exact: true })
       .waitFor();
-    await page.unroute(origin + '/api/tickets');
+    await page.unroute(ticketRoute);
     await page.getByRole('button', { name: 'Retry', exact: true }).click();
     await rows();
     controlledFailure = false;
     passed(
-      'A browser-only API503 leaves a controlled error and Retry restores all 25 cloud tickets.',
+      neon
+        ? 'A browser-only paged API503 leaves a controlled error and Retry restores the Neon page.'
+        : 'A browser-only API503 leaves a controlled error and Retry restores all 25 cloud tickets.',
     );
     await page.setViewportSize({ width: 390, height: 844 });
     await rows();

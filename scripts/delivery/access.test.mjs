@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildAccessDocuments } from './access.mjs';
+import {
+  buildAccessDocuments,
+  buildCodeBuildAccessDocuments,
+} from './access.mjs';
 
 function config() {
   return {
@@ -179,4 +182,61 @@ test('invalid cross-account target and widened trust configuration are rejected'
     mutate(value);
     assert.throws(() => buildAccessDocuments(value));
   }
+});
+
+test('Neon CFN policy changes are limited to the existing Lambda role and never reach secrets', () => {
+  const input = config();
+  const documents = buildAccessDocuments({ ...input, neonBackend: true });
+  const writes = documents.servicePermissions.Statement.filter((statement) =>
+    statement.Action.some((action) => /PutRole|DeleteRole/.test(action)),
+  );
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].Resource, input.lambdaExecutionRoleArn);
+  assert.deepEqual(writes[0].Action, [
+    'iam:PutRolePolicy',
+    'iam:DeleteRolePolicy',
+  ]);
+  assert.equal(
+    documents.servicePermissions.Statement.some((statement) =>
+      statement.Action.some((action) =>
+        /ssm:|kms:|iam:Create|iam:Attach|iam:UpdateAssumeRole/.test(action),
+      ),
+    ),
+    false,
+  );
+});
+
+test('CodeBuild trust pins the project and publisher can read only its distinct artifact credential', () => {
+  const input = config();
+  const result = buildCodeBuildAccessDocuments({
+    ...input,
+    projectName: 'platypus-service-publisher',
+  });
+  const trust = result.publisherTrust.Statement[0];
+  assert.equal(trust.Principal.Service, 'codebuild.amazonaws.com');
+  assert.deepEqual(trust.Condition.StringEquals, {
+    'aws:SourceAccount': input.target.accountId,
+    'aws:SourceArn':
+      'arn:aws:codebuild:eu-north-1:123456789012:project/platypus-service-publisher',
+  });
+  const secrets = result.publisherPermissions.Statement.filter((statement) =>
+    statement.Action.some((action) => action.startsWith('ssm:')),
+  );
+  assert.equal(secrets.length, 1);
+  assert.deepEqual(secrets[0].Action, ['ssm:GetParameters']);
+  assert.equal(
+    secrets[0].Resource,
+    'arn:aws:ssm:eu-north-1:123456789012:parameter/platypus-service/delivery/github-read-token',
+  );
+  assert.equal(
+    result.publisherPermissions.Statement.some((statement) =>
+      statement.Action.some((action) =>
+        /iam:Put|iam:Delete|lambda:Update|kms:Decrypt/.test(action),
+      ),
+    ),
+    false,
+  );
+  assert.throws(() =>
+    buildCodeBuildAccessDocuments({ ...input, projectName: 'other' }),
+  );
 });
