@@ -27,29 +27,52 @@ const operations = new Set([
 ]);
 
 // Argument arrays and private temporary files keep JSON, bytes and credentials out of shell parsing.
-export function createAwsCliTransport({ region, profile, executable = 'aws' }) {
+export function createAwsCliTransport({
+  region,
+  profile,
+  executable = 'aws',
+  executeCommand = execute,
+}) {
   async function invoke(service, operation, input, extra = []) {
     if (!operations.has(`${service}/${operation}`))
       throw new Error('Unreviewed AWS operation.');
     const directory = await mkdtemp(path.join(os.tmpdir(), 'platypus-cli-'));
     try {
       const filename = path.join(directory, 'input.json');
-      await writeFile(filename, JSON.stringify(input), { mode: 0o600 });
+      // Streaming GetObject does not support --cli-input-json.
+      const download = service === 's3api' && operation === 'get-object';
+      const inputArgs = [];
+      if (download) {
+        const flags = {
+          Bucket: '--bucket',
+          Key: '--key',
+          ExpectedBucketOwner: '--expected-bucket-owner',
+          ChecksumMode: '--checksum-mode',
+        };
+        for (const [name, value] of Object.entries(input)) {
+          if (!Object.hasOwn(flags, name) || typeof value !== 'string')
+            throw new Error('Unsupported object download parameter.');
+          inputArgs.push(flags[name], value);
+        }
+      } else {
+        await writeFile(filename, JSON.stringify(input), { mode: 0o600 });
+        inputArgs.push('--cli-input-json', 'file://' + filename);
+      }
       const args = [
         service,
         operation,
-        '--cli-input-json',
-        'file://' + filename,
+        ...inputArgs,
         '--region',
         service === 'freetier' ? 'us-east-1' : region,
         '--output',
         'json',
         '--no-cli-pager',
         '--no-cli-auto-prompt',
-        ...extra,
       ];
       if (profile) args.push('--profile', profile);
-      const result = await execute(executable, args, {
+      // GetObject's output filename must remain the final argument.
+      args.push(...extra);
+      const result = await executeCommand(executable, args, {
         windowsHide: true,
         timeout: 120000,
         maxBuffer: 8 * 1024 * 1024,
