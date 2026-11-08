@@ -867,6 +867,10 @@ Latest idle recovery acceptance: On November 7, 2026, after the guided idle-then
 
 On November7 the learner accepted preparation after discussing complexity and parallel agents, then asked whether any input was needed. Root proceeds without requiring credentials or extra permission. Contract090 assigns separate backend091, infrastructure092 and candidate packaging/testing093 authors; root owns shared integration094 and independent reviewer095 follows. Prepare and verify source/templates/offline artifacts only; ordinary feature-branch CI is allowed. Existing public AWS fixture release, imported/source data, Free plan and manual-only publication remain unchanged. Actual IAM/SSM availability, learner secret creation and later publication are not performed or implied.
 
+## 5.55. Neon publisher continuation096 — locally verified preparation
+
+On November8 the learner delegated the remaining source edits and local checks to the coordinator, requesting economical work and progress updates. The earlier manual-edit restriction is superseded for this preparation; learner-only cloud setup/publication remains. Existing uncommitted publisher changes are preserved and integrated. The candidate now supports a shared Neon-aware acceptance path, explicit initial role bootstrap/reconciliation, scoped CFN transition, immutable ZIP/inventory publication, retained Neon/fixture recovery, authenticated Package Neon artifact verification, CLI, and a disabled-by-default CodeBuild adapter/buildspec/access-document generator. Read docs/implementation/096-neon-publisher-handoff.md for exact boundaries and remaining operator order. Local120/120 AWS/package/delivery/Neon groups, lint, formatting and diff checks passed; bounded independent read-only review found no confirmed blocker. Hosted CI is pending for this final source; do not claim CodeBuild validation or public cutover from this entry. No main promotion, cloud action or credential read occurs in this preparation.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.

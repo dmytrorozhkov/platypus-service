@@ -2,12 +2,19 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { crc32, inflateRawSync } from 'node:zlib';
-import { outputRoot, sha256, within } from '../aws/common.mjs';
+import {
+  outputRoot,
+  projectRoot,
+  json,
+  sha256,
+  within,
+} from '../aws/common.mjs';
+import { verifyNeonRelease } from '../neon-aws/release.mjs';
+import { validateNeonRuntimeConfig } from '../neon-aws/templates.mjs';
 import { DELIVERY_BUNDLE_LIMIT, verifyDeliveryBundle } from './bundle.mjs';
 
 export const ARTIFACT_ARCHIVE_LIMIT = 40 * 1024 * 1024;
 const repository = 'dmytrorozhkov/platypus-service';
-const workflowPath = '.github/workflows/package.yml';
 const apiRoot = 'https://api.github.com/repos/' + repository;
 const check = (condition, message) => assert(condition, message);
 const numberId = (value) =>
@@ -18,6 +25,17 @@ const numberId = (value) =>
       : null;
 
 export function validateArtifactSelection(selection) {
+  return validateSelection(selection, false);
+}
+
+export function validateNeonArtifactSelection(selection) {
+  return validateSelection(selection, true);
+}
+
+function validateSelection(selection, neon) {
+  const workflowPath = neon
+    ? '.github/workflows/package-neon.yml'
+    : '.github/workflows/package.yml';
   check(
     selection?.repository === repository &&
       selection.workflowPath === workflowPath &&
@@ -36,10 +54,14 @@ export function validateArtifactSelection(selection) {
       'Explicit bounded numeric selection identities are required.',
     );
   check(
-    /^[a-f0-9]{40}$/.test(selection.sourceSha ?? ''),
+    /^[a-f0-9]{40}$/.test(selection.sourceSha ?? '') &&
+      !/^0+$/.test(selection.sourceSha),
     'Exact selected source SHA is required.',
   );
-  for (const key of ['artifactDigest', 'envelopeSha256'])
+  for (const key of [
+    'artifactDigest',
+    neon ? 'manifestSha256' : 'envelopeSha256',
+  ])
     check(
       /^[a-f0-9]{64}$/.test(selection[key] ?? ''),
       'Externally reviewed archive and envelope digests are required.',
@@ -48,7 +70,9 @@ export function validateArtifactSelection(selection) {
     /^https:\/\/d[a-z0-9]+\.cloudfront\.net$/.test(selection.origin ?? ''),
     'Reviewed production origin is required.',
   );
-  const release = `gh-${selection.runId}-${selection.runAttempt}-${selection.sourceSha.slice(0, 12)}`;
+  const release = neon
+    ? `neon-${selection.runId}-${selection.runAttempt}`
+    : `gh-${selection.runId}-${selection.runAttempt}-${selection.sourceSha.slice(0, 12)}`;
   check(
     release.length <= 48 && selection.release === release,
     'Selected release must derive from the exact source/run/attempt.',
@@ -144,6 +168,7 @@ function checkRepository(value, selection) {
 }
 
 function validateMetadata(run, workflow, artifact, selection, clock) {
+  const workflowPath = selection.workflowPath;
   checkRepository(run.repository, selection);
   checkRepository(run.head_repository, selection);
   check(
@@ -453,22 +478,56 @@ export function inspectArtifactZip(archive) {
   }));
 }
 
-export async function verifyArtifactArchive({ archive, selection, signal }) {
+export function verifyArtifactArchive(options) {
+  return verifySelectedArchive({ ...options, neon: false });
+}
+
+export function verifyNeonArtifactArchive(options) {
+  return verifySelectedArchive({ ...options, neon: true });
+}
+
+async function verifySelectedArchive({
+  archive,
+  selection,
+  signal,
+  neon,
+  runtimeConfig,
+}) {
   signal?.throwIfAborted();
-  validateArtifactSelection(selection);
+  validateSelection(selection, neon);
+  if (neon) {
+    validateNeonRuntimeConfig(runtimeConfig);
+    check(
+      runtimeConfig.origin === selection.origin,
+      'Runtime origin differs from the selected artifact.',
+    );
+  }
   check(
     sha256(archive) === selection.artifactDigest,
     'Downloaded artifact archive digest differs from the selected receipt.',
   );
   const entries = inspectArtifactZip(archive);
-  const root = path.join(outputRoot, 'releases');
+  const root = neon
+    ? path.join(projectRoot, '.local/neon-aws/artifacts')
+    : path.join(outputRoot, 'releases');
   await mkdir(root, { recursive: true });
   check(
     (await realpath(root)) === root,
     'Release extraction root must not resolve through links.',
   );
-  const directory = await mkdtemp(path.join(root, 'artifact-'));
+  const allocation = await mkdtemp(path.join(root, 'artifact-'));
+  const directory = neon
+    ? path.join(allocation, '.local/neon-aws/releases', selection.release)
+    : allocation;
   try {
+    if (neon) {
+      await writeFile(
+        path.join(allocation, 'package.json'),
+        json({ name: '@platypus/workspace' }),
+        { flag: 'wx' },
+      );
+      await mkdir(directory, { recursive: true });
+    }
     for (const entry of entries) {
       signal?.throwIfAborted();
       const filename = within(
@@ -482,6 +541,17 @@ export async function verifyArtifactArchive({ archive, selection, signal }) {
         await writeFile(filename, entry.body, { flag: 'wx', mode: 0o600 });
     }
     signal?.throwIfAborted();
+    if (neon) {
+      const verified = await verifyNeonRelease({
+        root: allocation,
+        release: selection.release,
+        expectedSourceSha: selection.sourceSha,
+        expectedRuntimeConfig: runtimeConfig,
+        expectedManifestSha256: selection.manifestSha256,
+      });
+      signal?.throwIfAborted();
+      return { ...verified, root: allocation };
+    }
     const verified = await verifyDeliveryBundle({
       directory,
       repository,
@@ -495,7 +565,7 @@ export async function verifyArtifactArchive({ archive, selection, signal }) {
     return verified;
   } catch (error) {
     // Only this newly allocated directory is eligible for local cleanup.
-    const cleanup = path.resolve(directory);
+    const cleanup = path.resolve(allocation);
     check(
       path.dirname(cleanup) === root &&
         /^artifact-[A-Za-z0-9]+$/.test(path.basename(cleanup)) &&
@@ -507,14 +577,31 @@ export async function verifyArtifactArchive({ archive, selection, signal }) {
   }
 }
 
-export async function readSelectedArtifact({
+export function readSelectedArtifact(options) {
+  return readSelectedPackage({ ...options, neon: false });
+}
+
+export function readSelectedNeonArtifact(options) {
+  return readSelectedPackage({ ...options, neon: true });
+}
+
+async function readSelectedPackage({
   selection,
   token,
   transport,
   now = Date.now(),
   timeoutMs = 90000,
+  neon,
+  runtimeConfig,
 }) {
-  validateArtifactSelection(selection);
+  validateSelection(selection, neon);
+  if (neon) {
+    validateNeonRuntimeConfig(runtimeConfig);
+    check(
+      runtimeConfig.origin === selection.origin,
+      'Runtime origin differs from the selected artifact.',
+    );
+  }
   check(
     typeof token === 'string' && /^[A-Za-z0-9_.-]{20,512}$/.test(token),
     'Explicit GitHub read credential is required.',
@@ -578,7 +665,7 @@ export async function readSelectedArtifact({
           `${apiRoot}/actions/runs/${selection.runId}/attempts/${selection.runAttempt}`,
         );
         const workflow = await metadata(
-          `${apiRoot}/actions/workflows/package.yml`,
+          `${apiRoot}/actions/workflows/${neon ? 'package-neon.yml' : 'package.yml'}`,
         );
         const artifact = await metadata(
           `${apiRoot}/actions/artifacts/${selection.artifactId}`,
@@ -608,9 +695,11 @@ export async function readSelectedArtifact({
           archive.length === artifact.size_in_bytes,
           'Archive length differs from official artifact metadata.',
         );
-        return await verifyArtifactArchive({
+        return await verifySelectedArchive({
           archive,
           selection,
+          neon,
+          runtimeConfig,
           signal: controller.signal,
         });
       })(),

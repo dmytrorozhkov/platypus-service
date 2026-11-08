@@ -21,7 +21,7 @@ import {
 } from '../aws/common.mjs';
 import { verifyDeliveryBundle } from '../delivery/bundle.mjs';
 import { prepareNeonRelease, verifyNeonRelease } from './release.mjs';
-import { restoreFiles } from '../delivery/executor.mjs';
+import { publishNeonDelivery, restoreFiles } from '../delivery/executor.mjs';
 
 const sourceSha = '3'.repeat(40);
 const config = {
@@ -45,7 +45,7 @@ test(
     await mkdir(local, { recursive: true });
     const base = await mkdtemp(path.join(local, 'neon-release-tests-'));
     const root = path.join(base, 'workspace');
-    const release = 'synthetic-release';
+    const release = 'neon-123456-1';
     await mkdir(path.join(root, 'apps/server/dist'), { recursive: true });
     await writeFile(
       path.join(root, 'package.json'),
@@ -96,6 +96,10 @@ test(
     }
     const shell = path.join(root, 'apps/shell/dist/browser');
     await mkdir(shell, { recursive: true });
+    await writeFile(
+      path.join(shell, 'favicon.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg"/>',
+    );
     await writeFile(
       path.join(shell, 'index.html'),
       '<html><body>synthetic shell</body></html>',
@@ -201,6 +205,98 @@ test(
             expectedRuntimeConfig: config,
             expectedManifestSha256: result.manifestSha256,
           });
+        },
+      );
+      await t.test(
+        'Neon publication checks package pins before cloud access',
+        async () => {
+          const account = config.accountId;
+          const functionArn = `arn:aws:lambda:eu-north-1:${account}:function:offline-backend`;
+          const target = {
+            project: 'platypus-service',
+            region: config.region,
+            accountId: account,
+            ownershipVerified: true,
+            serviceRoleArn: `arn:aws:iam::${account}:role/offline-cfn`,
+            lambdaExecutionRoleArn: `arn:aws:iam::${account}:role/offline-lambda`,
+            concurrency: {
+              mode: 'account-cap-ten',
+              acceptedSharedAccountCap: true,
+            },
+            stacks: Object.fromEntries(
+              ['storage', 'backend', 'edge'].map((kind) => [
+                kind,
+                `arn:aws:cloudformation:eu-north-1:${account}:stack/platypus-test-${kind}/offline`,
+              ]),
+            ),
+            resources: {
+              bucket: 'offline-artifacts',
+              bucketDomain: 'offline-artifacts.s3.eu-north-1.amazonaws.com',
+              functionArn,
+              aliasArn: functionArn + ':live',
+              functionUrl: 'https://offline.lambda-url.eu-north-1.on.aws/',
+              distributionId: 'DTEST123456',
+              origin: config.origin,
+            },
+          };
+          const context = {
+            repository: 'dmytrorozhkov/platypus-service',
+            sourceSha,
+            runId: '123456',
+            runAttempt: '1',
+          };
+          let calls = 0;
+          const stop = new Error('Offline preflight boundary');
+          const transport = {
+            async request(service, operation) {
+              calls += 1;
+              assert.equal(service, 'sts');
+              assert.equal(operation, 'get-caller-identity');
+              throw stop;
+            },
+            async getObject() {
+              calls += 1;
+              assert.fail('Unexpected object read.');
+            },
+            async putObject() {
+              calls += 1;
+              assert.fail('Unexpected object write.');
+            },
+          };
+          const input = {
+            root,
+            release,
+            runtimeConfig: config,
+            manifestSha256: result.manifestSha256,
+            target,
+            context,
+            transport,
+            liveCheck: async () => ({
+              success: true,
+              kind: 'platypus-neon-live-check',
+              origin: config.origin,
+            }),
+          };
+          await assert.rejects(
+            publishNeonDelivery(input),
+            (error) => error === stop,
+          );
+          assert.equal(calls, 1);
+
+          for (const override of [
+            { manifestSha256: '0'.repeat(64) },
+            { context: { ...context, sourceSha: '4'.repeat(40) } },
+            { runtimeConfig: { ...config, passwordParameterVersion: 2 } },
+            { release: 'neon-123456-2' },
+            { liveCheck: undefined },
+            { allowNeonTransition: 'yes' },
+          ]) {
+            calls = 0;
+            await assert.rejects(
+              publishNeonDelivery({ ...input, ...override }),
+            );
+            assert.equal(calls, 0);
+          }
         },
       );
       await t.test(

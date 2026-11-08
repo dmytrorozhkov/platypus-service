@@ -15,7 +15,9 @@ export function buildAccessDocuments({
   target,
   github,
   lambdaExecutionRoleArn,
+  neonBackend = false,
 }) {
+  assert.equal(typeof neonBackend, 'boolean');
   assert.equal(target.project, 'platypus-service');
   assert.equal(target.region, 'eu-north-1');
   assert.match(target.accountId, /^[1-9][0-9]{11}$/);
@@ -234,7 +236,27 @@ export function buildAccessDocuments({
       ['lambda:GetAlias', 'lambda:UpdateAlias'],
       resources.aliasArn,
     ),
-    allow('ObserveExistingLambdaRole', ['iam:GetRole'], lambdaExecutionRoleArn),
+    allow(
+      'ObserveExistingLambdaRole',
+      neonBackend
+        ? [
+            'iam:GetRole',
+            'iam:GetRolePolicy',
+            'iam:ListRolePolicies',
+            'iam:ListAttachedRolePolicies',
+          ]
+        : ['iam:GetRole'],
+      lambdaExecutionRoleArn,
+    ),
+    ...(neonBackend
+      ? [
+          allow(
+            'ManageOnlyExistingLambdaInlinePolicies',
+            ['iam:PutRolePolicy', 'iam:DeleteRolePolicy'],
+            lambdaExecutionRoleArn,
+          ),
+        ]
+      : []),
     allow(
       'PassOnlyExistingLambdaRole',
       ['iam:PassRole'],
@@ -257,5 +279,71 @@ export function buildAccessDocuments({
     servicePermissions,
     setupRequiresFreshInventory: true,
     setupRequiresReviewedServiceRoleAssociation: true,
+  };
+}
+
+// Generates reviewable documents only; never creates roles or reads secret values.
+export function buildCodeBuildAccessDocuments({
+  target,
+  github,
+  lambdaExecutionRoleArn,
+  projectName,
+}) {
+  assert.equal(projectName, 'platypus-service-publisher');
+  const documents = buildAccessDocuments({
+    target,
+    github,
+    lambdaExecutionRoleArn,
+    neonBackend: true,
+  });
+  const account = target.accountId;
+  const region = target.region;
+  const projectArn =
+    'arn:aws:codebuild:' + region + ':' + account + ':project/' + projectName;
+  const group =
+    'arn:aws:logs:' +
+    region +
+    ':' +
+    account +
+    ':log-group:/aws/codebuild/' +
+    projectName;
+  return {
+    schemaVersion: 1,
+    project: target.project,
+    publisherTrust: policy([
+      {
+        Effect: 'Allow',
+        Principal: { Service: 'codebuild.amazonaws.com' },
+        Action: 'sts:AssumeRole',
+        Condition: {
+          StringEquals: {
+            'aws:SourceAccount': account,
+            'aws:SourceArn': projectArn,
+          },
+        },
+      },
+    ]),
+    publisherPermissions: policy([
+      ...documents.publisherPermissions.Statement,
+      allow(
+        'ReadOnlyGithubArtifactCredential',
+        ['ssm:GetParameters'],
+        'arn:aws:ssm:' +
+          region +
+          ':' +
+          account +
+          ':parameter/platypus-service/delivery/github-read-token',
+      ),
+      allow('CreateOnlyPublisherLogGroup', ['logs:CreateLogGroup'], group),
+      allow(
+        'WriteOnlyPublisherLogs',
+        ['logs:CreateLogStream', 'logs:PutLogEvents'],
+        group + ':log-stream:*',
+      ),
+    ]),
+    serviceTrust: documents.serviceTrust,
+    servicePermissions: documents.servicePermissions,
+    setupRequiresFreshInventory: true,
+    setupAllowsExplicitNeonBootstrap: true,
   };
 }

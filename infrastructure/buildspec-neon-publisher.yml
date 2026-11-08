@@ -1,0 +1,33 @@
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    CI: 'true'
+    NG_CLI_ANALYTICS: 'false'
+    PLATYPUS_CONFIRM: 'disabled'
+  parameter-store:
+    PLATYPUS_GITHUB_READ_TOKEN: '/platypus-service/delivery/github-read-token'
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 24.21.0
+    commands:
+      - 'set -euo pipefail'
+      - 'node -e "if (!/^[a-f0-9]{40}$/.test(process.env.PLATYPUS_PUBLISHER_SHA || String()) || /^0+$/.test(process.env.PLATYPUS_PUBLISHER_SHA)) process.exit(1)"'
+      - 'git init "$CODEBUILD_SRC_DIR/publisher"'
+      - 'cd "$CODEBUILD_SRC_DIR/publisher"'
+      - 'git remote add origin https://github.com/dmytrorozhkov/platypus-service.git'
+      - 'git fetch --depth=1 origin refs/heads/main'
+      - 'test "$(git rev-parse FETCH_HEAD)" = "$PLATYPUS_PUBLISHER_SHA"'
+      - 'git checkout --detach FETCH_HEAD'
+      - 'node --input-type=module -e "import {readCodeBuildInput} from \"./scripts/neon-aws/codebuild-input.mjs\"; readCodeBuildInput(process.env, process.env.PLATYPUS_PUBLISHER_SHA)"'
+      - 'npm install --global npm@11.19.0'
+      - 'npm ci'
+      - 'npx playwright install --with-deps chromium'
+  build:
+    commands:
+      - 'cd "$CODEBUILD_SRC_DIR/publisher"'
+      - 'export PLATYPUS_BROWSER="$(node --input-type=module -e "import {chromium} from \"@playwright/test\"; process.stdout.write(chromium.executablePath())")"'
+      - 'node scripts/neon-aws/codebuild.mjs'
