@@ -10,6 +10,7 @@ import net from 'node:net';
 import { Client } from 'pg';
 import { loadSchema } from '../apps/server/database/neon/snapshot.mjs';
 import { setRuntimePassword } from '../apps/server/database/neon/runtime-password.mjs';
+import { createNeonLambdaHandler } from '../apps/server/dist/neon-lambda.js';
 import {
   probeNeonConnection,
   createNeonRuntime,
@@ -355,6 +356,140 @@ try {
   checks.push(
     'real HTTP paged API/options/health, exact localhost CORS and idempotent owned shutdown',
   );
+  // An owned Lambda event SQL integration, with synthetic secret retrieval and
+  // explicit loopback transport injection. This is not an AWS/Neon TLS test.
+  const lambdaOrigin = 'https://dexample.cloudfront.net';
+  const lambdaAccount = '123456789012';
+  let secretLoads = 0;
+  let lambdaClient;
+  const lambdaEnvironment = {
+    AWS_REGION: 'eu-north-1',
+    NEON_HOST: host,
+    NEON_DATABASE: 'neondb',
+    NEON_USER: 'platypus_app',
+    NEON_CONFIRM_TARGET: host + '/neondb',
+    ALLOWED_ORIGINS: lambdaOrigin,
+    NEON_PASSWORD_PARAMETER_ARN:
+      'arn:aws:ssm:eu-north-1:' +
+      lambdaAccount +
+      ':parameter/platypus-service/production/neon/password',
+    NEON_PASSWORD_PARAMETER_VERSION: '1',
+  };
+  const lambdaContext = () => ({
+    invokedFunctionArn:
+      'arn:aws:lambda:eu-north-1:' +
+      lambdaAccount +
+      ':function:owned-integration:live',
+    getRemainingTimeInMillis: () => 30000,
+  });
+  const lambdaEvent = (
+    rawPath = '/api/tickets/query',
+    rawQueryString = '',
+  ) => ({
+    version: '2.0',
+    rawPath,
+    rawQueryString,
+    headers: { origin: lambdaOrigin },
+    requestContext: { http: { method: 'GET' } },
+  });
+  const makeLambda = () =>
+    createNeonLambdaHandler({
+      environment: lambdaEnvironment,
+      getPassword: async () => {
+        secretLoads++;
+        return nextPassword;
+      },
+      createConnection: (settings) => {
+        assert.equal(settings.operationTimeoutMillis, 8000);
+        assert.equal(settings.closeTimeoutMillis, 3000);
+        assert.equal(settings.environment.NEON_PASSWORD, nextPassword);
+        const client = connect('neondb', 'platypus_app', nextPassword);
+        client.then((value) => {
+          lambdaClient = value;
+        });
+        return {
+          async query(text, values) {
+            const value = await client;
+            await value.query('BEGIN READ ONLY');
+            try {
+              const result = await value.query(text, values);
+              await value.query('COMMIT');
+              return result;
+            } catch (error) {
+              try {
+                await value.query('ROLLBACK');
+              } catch {
+                /* Owned test cleanup follows. */
+              }
+              throw error;
+            }
+          },
+          async close() {
+            await close(await client);
+          },
+        };
+      },
+    });
+  const lambda = makeLambda();
+  try {
+    assert.equal((await lambda(lambdaEvent('/api/health'))).statusCode, 200);
+    assert.equal(
+      (await lambda(lambdaEvent('/api/tickets/query', 'page=0'))).statusCode,
+      400,
+    );
+    assert.equal(secretLoads, 0);
+    const cold = await lambda(
+      lambdaEvent('/api/tickets/query', 'page=1&pageSize=25'),
+      lambdaContext(),
+    );
+    assert.equal(cold.statusCode, 200);
+    assert.equal(JSON.parse(cold.body).total, 3);
+    assert.equal(cold.headers['access-control-allow-origin'], lambdaOrigin);
+    assert.equal(
+      (await lambda(lambdaEvent('/api/tickets/options'), lambdaContext()))
+        .statusCode,
+      200,
+    );
+    assert.equal(secretLoads, 1);
+    checks.push(
+      'Lambda event cold/warm paged reads and options use real owned SELECT-only PostgreSQL; health and invalid input need no secret or SQL',
+    );
+    await close(lambdaClient);
+    const failed = await lambda(lambdaEvent(), lambdaContext());
+    assert.equal(failed.statusCode, 500);
+    assert(!failed.body.includes(nextPassword));
+    const retry = await lambda(lambdaEvent(), lambdaContext());
+    assert.equal(retry.statusCode, 200);
+    assert.equal(JSON.parse(retry.body).total, 3);
+    assert.equal(secretLoads, 2);
+    checks.push(
+      'Lambda warm disconnected client fails once without SQL replay; next explicit invocation reconnects and reads actual rows',
+    );
+  } finally {
+    await lambda.close();
+  }
+  await owner.query(
+    'GRANT UPDATE(subject) ON platypus.tickets TO platypus_app',
+  );
+  const guardedLambda = makeLambda();
+  try {
+    assert.equal(
+      (await guardedLambda(lambdaEvent(), lambdaContext())).statusCode,
+      500,
+    );
+    await owner.query(
+      'REVOKE UPDATE(subject) ON platypus.tickets FROM platypus_app',
+    );
+    const recovered = await guardedLambda(lambdaEvent(), lambdaContext());
+    assert.equal(recovered.statusCode, 200);
+    assert.equal(JSON.parse(recovered.body).total, 3);
+    checks.push(
+      'Lambda startup refuses actual column-only privilege drift before business data, then succeeds on a later explicit invocation after restoration',
+    );
+  } finally {
+    await guardedLambda.close();
+  }
+
   console.log(
     JSON.stringify({
       passed: checks.length,

@@ -185,6 +185,9 @@ jobs:
       - name: Test delivery failure boundaries offline
         run: npm.cmd run test:delivery
 
+      - name: Test opt-in Neon AWS candidates offline
+        run: npm.cmd run test:neon:aws
+
       - name: Prepare checked full delivery bundle
         if: ${{ inputs.package_delivery == true }}
         id: bundle

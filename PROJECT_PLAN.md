@@ -863,6 +863,10 @@ Latest local Neon UI acceptance: Following the successful actual app check and g
 
 Latest idle recovery acceptance: On November 7, 2026, after the guided idle-then-page-request check, the learner reported that everything worked and no delay was noticeable. This confirms learner-observed recovery after idle without a visible error or noticeable delay. It is a qualitative user observation, not measured latency or independent telemetry proving the Neon compute actually suspended. Together with the separate successful pooled app probe, populated New rows and accepted pagination, this completes the demonstrated local frontend/local backend/Neon read-only slice. Actual imported100000tickets/100organizations/40agents were already verified by full-data receipts. The next proposed stage is preparing AWS backend integration with Neon; implementation/publication remains separately scoped, and only the learner starts publication. The learner deferred the custom-domain topic as unimportant for now; do not purchase/register a domain or change DNS/certificates. Existing AWS public demo remains the25-fixture version, main and all data/services remain preserved.
 
+## 5.54. AWS-to-Neon connection preparation090-095 - approved
+
+On November7 the learner accepted preparation after discussing complexity and parallel agents, then asked whether any input was needed. Root proceeds without requiring credentials or extra permission. Contract090 assigns separate backend091, infrastructure092 and candidate packaging/testing093 authors; root owns shared integration094 and independent reviewer095 follows. Prepare and verify source/templates/offline artifacts only; ordinary feature-branch CI is allowed. Existing public AWS fixture release, imported/source data, Free plan and manual-only publication remain unchanged. Actual IAM/SSM availability, learner secret creation and later publication are not performed or implied.
+
 ## 6. Costs — agreed approach
 
 - The monthly budget is unknown; no amount or currency is fixed.

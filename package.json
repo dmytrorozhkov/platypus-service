@@ -51,13 +51,15 @@
     "serve:support:large": "node scripts/serve-local.mjs support-large",
     "test:neon:migration:integration": "node scripts/neon-migration-integration.mjs",
     "serve:support:neon": "node scripts/serve-local.mjs support-neon",
-    "test:neon:runtime:integration": "node scripts/neon-runtime-integration.mjs"
+    "test:neon:runtime:integration": "node scripts/neon-runtime-integration.mjs",
+    "test:neon:aws": "node --test scripts/neon-aws/*.test.mjs"
   },
   "devDependencies": {
     "@aws/cloudformation-validate": "1.15.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
     "angular-eslint": "22.6.0",
+    "esbuild": "0.28.2",
     "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
