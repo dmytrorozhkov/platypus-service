@@ -250,12 +250,17 @@ function archive(root, directory) {
         PLATYPUS_PACKAGE_ARCHIVE: path.join(directory, 'backend.zip'),
         PLATYPUS_PACKAGE_EXTRACT: path.join(directory, 'lambda-extracted'),
       },
-      timeout: 30000,
+      timeout: 120000,
       maxBuffer: 1024 * 1024,
       windowsHide: true,
       encoding: 'utf8',
     },
   );
+  if (result.error?.code === 'ETIMEDOUT') {
+    throw new Error(
+      'Owned ZIP creation/extraction timed out after 120 seconds.',
+    );
+  }
   assert.equal(
     result.status,
     0,
