@@ -548,7 +548,6 @@ class FakeAws extends MemoryObjects {
           ChangeSetName: this.changes.ChangeSetName,
           Status: 'CREATE_COMPLETE',
           ExecutionStatus: 'AVAILABLE',
-          RoleARN: t.serviceRoleArn,
           Parameters: parameters,
           Changes: changed.map(([logical, type, property]) => ({
             Type: 'Resource',

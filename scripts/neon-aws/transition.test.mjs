@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { validateChangeSet } from '../delivery/executor.mjs';
 
 const target = {
@@ -14,7 +15,6 @@ function candidate() {
     ChangeSetName: name,
     Status: 'CREATE_COMPLETE',
     ExecutionStatus: 'AVAILABLE',
-    RoleARN: target.serviceRoleArn,
     Changes: [
       ['ExecutionRole', 'AWS::IAM::Role', 'Policies'],
       ['Function', 'AWS::Lambda::Function', 'Timeout'],
@@ -42,11 +42,8 @@ test('Neon transition requires explicit mode and excludes recovery', () => {
   assert.throws(() => validateChangeSet(candidate(), target, name, true, true));
 });
 
-test('Neon transition rejects role, resource and property drift', () => {
+test('Neon transition rejects resource and property drift', () => {
   const mutations = [
-    (value) => {
-      value.RoleARN += '-other';
-    },
     (value) => {
       value.Changes.pop();
     },
@@ -75,6 +72,61 @@ test('Neon transition rejects role, resource and property drift', () => {
   ];
   for (const mutate of mutations) {
     const value = candidate();
+    mutate(value);
+    assert.throws(() => validateChangeSet(value, target, name, false, true));
+  }
+});
+
+// Sanitized structural capture from the November 9 AWS response; no property values.
+const observed = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/transition-change-set.json', import.meta.url),
+    'utf8',
+  ),
+);
+test('AWS transition response omits RoleARN and includes metadata and derived Role changes', () => {
+  assert.equal(Object.hasOwn(observed, 'RoleARN'), false);
+  assert.doesNotThrow(() =>
+    validateChangeSet(observed, target, name, false, true),
+  );
+  assert.throws(() => validateChangeSet(observed, target, name));
+  const mutations = [
+    (value) => {
+      value.Changes[0].ResourceChange.Scope.push('Tags');
+    },
+    (value) => {
+      value.Changes[0].ResourceChange.Details[0].ChangeSource =
+        'ResourceAttribute';
+    },
+    (value) => {
+      value.Changes[0].ResourceChange.Details[0].Target.Name = 'Unreviewed';
+    },
+    (value) => {
+      value.Changes[1].ResourceChange.Details.find(
+        (d) => d.Target.Name === 'Role',
+      ).CausingEntity = 'OtherRole.Arn';
+    },
+    (value) => {
+      value.Changes[1].ResourceChange.Details.find(
+        (d) => d.Target.Name === 'Role',
+      ).ChangeSource = 'DirectModification';
+    },
+    (value) => {
+      value.Changes[1].ResourceChange.Details.find(
+        (d) => d.Target.Name === 'Role',
+      ).Evaluation = 'Static';
+    },
+    (value) => {
+      value.Changes[1].ResourceChange.Details.find(
+        (d) => d.Target.Name === 'Role',
+      ).Target.RequiresRecreation = 'Always';
+    },
+    (value) => {
+      value.Changes[2].ResourceChange.Scope.push('Metadata');
+    },
+  ];
+  for (const mutate of mutations) {
+    const value = structuredClone(observed);
     mutate(value);
     assert.throws(() => validateChangeSet(value, target, name, false, true));
   }

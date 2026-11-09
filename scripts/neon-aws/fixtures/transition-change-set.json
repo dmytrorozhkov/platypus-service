@@ -1,0 +1,249 @@
+{
+  "StackId": "reviewed-backend-stack",
+  "ChangeSetName": "delivery-neon-transition",
+  "Status": "CREATE_COMPLETE",
+  "StatusReason": null,
+  "ExecutionStatus": "AVAILABLE",
+  "IncludeNestedStacks": false,
+  "ParentChangeSetId": null,
+  "RootChangeSetId": null,
+  "DeploymentMode": null,
+  "ImportExistingResources": null,
+  "Changes": [
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "ExecutionRole",
+        "ResourceType": "AWS::IAM::Role",
+        "Replacement": "False",
+        "Scope": ["Metadata", "Properties"],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Metadata",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Policies",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          }
+        ]
+      }
+    },
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "Function",
+        "ResourceType": "AWS::Lambda::Function",
+        "Replacement": "False",
+        "Scope": ["Metadata", "Properties"],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Metadata",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Description",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Role",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "ResourceAttribute",
+            "CausingEntity": "ExecutionRole.Arn"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Environment",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "NeonDatabase"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Description",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "BackendRevision"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Code",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Environment",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "NeonHost"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Environment",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Timeout",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Code",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "PackageKey"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Environment",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "NeonUser"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Environment",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "NeonPasswordParameterVersion"
+          }
+        ]
+      }
+    },
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "LiveAlias",
+        "ResourceType": "AWS::Lambda::Alias",
+        "Replacement": "False",
+        "Scope": ["Properties"],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "FunctionVersion",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ResourceAttribute",
+            "CausingEntity": "Version.Version"
+          }
+        ]
+      }
+    },
+    {
+      "Type": "Resource",
+      "ResourceChange": {
+        "Action": "Modify",
+        "LogicalResourceId": "Version",
+        "ResourceType": "AWS::Lambda::Version",
+        "Replacement": "True",
+        "Scope": ["Metadata", "Properties"],
+        "Details": [
+          {
+            "Target": {
+              "Attribute": "Metadata",
+              "RequiresRecreation": "Never"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "CodeSha256",
+              "RequiresRecreation": "Always"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "PackageSha256"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Description",
+              "RequiresRecreation": "Always"
+            },
+            "Evaluation": "Static",
+            "ChangeSource": "ParameterReference",
+            "CausingEntity": "BackendRevision"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "CodeSha256",
+              "RequiresRecreation": "Always"
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "DirectModification"
+          },
+          {
+            "Target": {
+              "Attribute": "Properties",
+              "Name": "Description",
+              "RequiresRecreation": "Always"
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "DirectModification"
+          }
+        ]
+      }
+    }
+  ]
+}
