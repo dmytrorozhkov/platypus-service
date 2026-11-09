@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { json, sha256 } from '../aws/common.mjs';
 import { backendTemplate } from '../aws/templates.mjs';
 import {
@@ -7,6 +8,13 @@ import {
   neonBackendTemplate,
 } from './templates.mjs';
 import { updateBackend } from '../delivery/executor.mjs';
+
+const observedChanges = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/transition-change-set.json', import.meta.url),
+    'utf8',
+  ),
+).Changes;
 
 const checksum = (body) => Buffer.from(sha256(body), 'hex').toString('base64');
 
@@ -78,7 +86,8 @@ function fixture(fault) {
     RollbackVersion: '',
   };
   let currentTemplate = backendTemplate();
-  let role;
+  let role =
+    fault === 'initial-role' ? target.serviceRoleArn + '-other' : undefined;
   let alias = '2';
   let requested;
   let stackReads = 0;
@@ -192,6 +201,11 @@ function fixture(fault) {
             : structuredClone(currentTemplate);
           if (input.ChangeSetName && fault === 'created-template')
             body.Resources.Function.Properties.Timeout = 900;
+          if (input.ChangeSetName && fault === 'created-metadata')
+            body.Resources.Function.Metadata = { Unreviewed: true };
+          if (input.ChangeSetName && fault === 'created-role-binding')
+            body.Resources.Function.Properties.Role =
+              'arn:aws:iam::111122223333:role/other';
           return { TemplateBody: body };
         }
         case 'cloudformation:create-change-set':
@@ -224,7 +238,7 @@ function fixture(fault) {
                 ['Version', 'AWS::Lambda::Version', 'CodeSha256'],
                 ['LiveAlias', 'AWS::Lambda::Alias', 'FunctionVersion'],
               ];
-          const changes = resources.map(([logical, type, property]) => ({
+          let changes = resources.map(([logical, type, property]) => ({
             Type: 'Resource',
             ResourceChange: {
               LogicalResourceId: logical,
@@ -239,20 +253,22 @@ function fixture(fault) {
               ],
             },
           }));
+          if (!rollback) changes = structuredClone(observedChanges);
           if (fault === 'change-parameters')
             resolved[0].ParameterValue = 'unreviewed';
           if (fault === 'change-policy')
-            changes[0].ResourceChange.Details[0].Target.Name =
-              'AssumeRolePolicyDocument';
+            changes[0].ResourceChange.Details.find(
+              (detail) => detail.Target.Attribute === 'Properties',
+            ).Target.Name = 'AssumeRolePolicyDocument';
+          if (fault === 'change-role-reference')
+            changes[1].ResourceChange.Details.find(
+              (detail) => detail.Target.Name === 'Role',
+            ).CausingEntity = 'OtherRole.Arn';
           return {
             StackId: target.stacks.backend,
             ChangeSetName: requested.ChangeSetName,
             Status: 'CREATE_COMPLETE',
             ExecutionStatus: 'AVAILABLE',
-            RoleARN:
-              fault === 'change-role'
-                ? target.serviceRoleArn + '-other'
-                : target.serviceRoleArn,
             Parameters: resolved,
             Changes: changes,
           };
@@ -351,9 +367,12 @@ test('first Neon update requires explicit transition selection', async () => {
 test('changed review evidence prevents change-set execution', async () => {
   for (const fault of [
     'created-template',
+    'created-metadata',
+    'created-role-binding',
+    'initial-role',
     'change-parameters',
     'change-policy',
-    'change-role',
+    'change-role-reference',
     'before-role',
     'before-parameters',
   ]) {

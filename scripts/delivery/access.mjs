@@ -147,9 +147,15 @@ export function buildAccessDocuments({
         StringLike: { 'cloudformation:ChangeSetName': 'delivery-*' },
       },
     ),
+    // Scope inspection to the backend; keep name restrictions on execution.
     allow(
-      'InspectAndExecuteBackendChangeSet',
-      ['cloudformation:DescribeChangeSet', 'cloudformation:ExecuteChangeSet'],
+      'InspectBackendChangeSets',
+      ['cloudformation:DescribeChangeSet'],
+      backend,
+    ),
+    allow(
+      'ExecuteBackendChangeSet',
+      ['cloudformation:ExecuteChangeSet'],
       backend,
       {
         StringLike: {

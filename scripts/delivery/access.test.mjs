@@ -97,6 +97,24 @@ test('routine publisher cannot delete resources, mutate IAM or directly publish 
     changes.Condition.StringEquals['cloudformation:RoleArn'],
     config().target.serviceRoleArn,
   );
+  const inspect = statements.find((s) =>
+    s.Action.includes('cloudformation:DescribeChangeSet'),
+  );
+  assert.deepEqual(inspect.Action, ['cloudformation:DescribeChangeSet']);
+  assert.equal(inspect.Resource, config().target.stacks.backend);
+  assert.equal(inspect.Condition, undefined);
+  const execute = statements.find((s) =>
+    s.Action.includes('cloudformation:ExecuteChangeSet'),
+  );
+  assert.deepEqual(execute.Action, ['cloudformation:ExecuteChangeSet']);
+  assert.equal(execute.Resource, config().target.stacks.backend);
+  assert.deepEqual(
+    execute.Condition.StringLike['cloudformation:ChangeSetName'],
+    [
+      'delivery-*',
+      'arn:aws:cloudformation:eu-north-1:123456789012:changeSet/delivery-*/*',
+    ],
+  );
 });
 
 test('CloudFormation role has no role, topology, deletion or invocation authority', () => {

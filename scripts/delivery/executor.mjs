@@ -955,14 +955,13 @@ export function validateChangeSet(
   if (neonTransition) {
     need(
       !recovery &&
-        changeSet.RoleARN === target.serviceRoleArn &&
         same(
           changeSet.Changes.map(
             (change) => change.ResourceChange?.LogicalResourceId,
           ).sort(),
           ['ExecutionRole', 'Function', 'LiveAlias', 'Version'],
         ),
-      'Neon transition requires the reviewed role and exact resource set.',
+      'Neon transition requires the exact reviewed resource set.',
     );
     allowed.ExecutionRole = ['AWS::IAM::Role', ['Policies']];
     allowed.Function[1].push('Timeout');
@@ -980,14 +979,43 @@ export function validateChangeSet(
           : item.Replacement === 'False'),
       'Unreviewed backend resource change.',
     );
+    // Only the first transition replaces the fully compared template, including
+    // reviewed context metadata. Routine updates and recovery retain strict scopes.
+    const metadata =
+      neonTransition &&
+      ['ExecutionRole', 'Function', 'Version'].includes(item.LogicalResourceId);
     need(
-      item.Scope?.every((scope) => scope === 'Properties') &&
+      item.Scope?.includes('Properties') &&
+        item.Scope.every(
+          (scope) =>
+            scope === 'Properties' || (metadata && scope === 'Metadata'),
+        ) &&
         item.Details?.length > 0 &&
-        item.Details.every(
-          (detail) =>
-            detail.Target?.Attribute === 'Properties' &&
-            spec[1].includes(detail.Target.Name),
-        ),
+        item.Details.every((detail) => {
+          const changed = detail.Target;
+          if (changed?.Attribute === 'Metadata')
+            return (
+              metadata &&
+              item.Scope.includes('Metadata') &&
+              changed.Name === undefined &&
+              changed.RequiresRecreation === 'Never' &&
+              detail.ChangeSource === 'DirectModification' &&
+              detail.Evaluation === 'Static'
+            );
+          if (changed?.Attribute !== 'Properties') return false;
+          if (spec[1].includes(changed.Name)) return true;
+          // Updating the existing role policy causes this dynamic dependency;
+          // the exact reviewed template still pins Function.Role to that role.
+          return (
+            neonTransition &&
+            item.LogicalResourceId === 'Function' &&
+            changed.Name === 'Role' &&
+            changed.RequiresRecreation === 'Never' &&
+            detail.ChangeSource === 'ResourceAttribute' &&
+            detail.Evaluation === 'Dynamic' &&
+            detail.CausingEntity === 'ExecutionRole.Arn'
+          );
+        }),
       'Unreviewed backend property change.',
     );
   }
@@ -1115,6 +1143,8 @@ export async function updateBackend(
       ? { ParameterKey, UsePreviousValue: true }
       : { ParameterKey, ParameterValue: selected[ParameterKey] },
   );
+  // DescribeChangeSet does not return RoleARN. Bind it in this request and the
+  // scoped IAM condition; verify stack role before execution and after completion.
   const request = {
     StackName: target.stacks.backend,
     ChangeSetName: name,

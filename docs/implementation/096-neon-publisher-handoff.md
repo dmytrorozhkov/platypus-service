@@ -51,9 +51,21 @@ For an exact reviewed selection, access documents can be generated locally by im
 
 Coordinator verification passed: 120/120 tests from `node --test scripts/aws/*.test.mjs scripts/delivery/*.test.mjs scripts/neon-aws/*.test.mjs`, including the existing real owned local HTTP/Edge browser group; `npm.cmd run lint`, `npm.cmd run format:check` and `git diff --check` passed. A bounded independent read-only source review found no confirmed blockers in provenance/runtime binding, transition/service-role gates, reconciliation/recovery, CodeBuild inputs/buildspec and browser commands/selectors. Initial test-only expectations for the new fixture runtime selector and Neon ZIP base64 digest were corrected before this complete passing run. The new cloud Neon browser mode and Ubuntu CodeBuild container have not been executed. Hosted CI remains pending for the final feature-branch source. New tests use owned temporary synthetic packages and fake AWS/GitHub responses; no AWS/Neon requests or deployment occur. Existing user changes are preserved and integrated. No application dependency or runtime data change is required by this publisher work.
 
+## November 9 change-set response correction
+
+The second learner-started CodeBuild publication reached successful change-set inspection but stopped before execution. Actual AWS metadata exposed three differences from the initial offline model: DescribeChangeSet does not return RoleARN; the first opt-in template changes context Metadata on ExecutionRole, Function and Version; changing the existing role policy also produces a dynamic Function.Role ResourceAttribute dependency on ExecutionRole.Arn. A sanitized structural fixture records these scopes and detail fields without property values.
+
+The validator no longer expects the unsupported response field. The reviewed CreateChangeSet request still explicitly pins the service role and its scoped IAM RoleArn condition, and before/after stack-role checks remain. First-transition metadata is accepted only for those three resources as Static DirectModification with Never recreation and no property name. Function.Role is accepted only for the exact Dynamic/ResourceAttribute/ExecutionRole.Arn/Never dependency; direct or substituted role changes are rejected. The exact previous and newly created templates, parameters, four-resource set and replacement decisions remain checked before execution. Routine publication and recovery do not acquire metadata or role-change permissions. Tests exercise the observed response, altered dependency provenance and recreated metadata/role bindings, and retained fixture alias recovery.
+
+Verification for this correction: combined AWS/delivery/Neon124/124 tests, global lint, formatting and diff checks passed. The regression reproduced the unsupported RoleARN failure before the fix. Independent read-only review found no confirmed blocker and passed13/13 focused tests.
+
+This is a source correction, not a successful deployment. The learner retains control of reconciliation, main promotion, package dispatch and every CodeBuild start. Preserve the pending operation and immutable receipts until explicitly reconciled; do not Retry the failed operation blindly.
+
 ## Official sources consulted
 
 - [No-source CodeBuild and inline buildspec](https://docs.aws.amazon.com/codebuild/latest/userguide/no-source.html)
 - [CodeBuild service-role trust and source conditions](https://docs.aws.amazon.com/codebuild/latest/userguide/setting-up-service-role.html)
 - [Supported CodeBuild images/runtimes](https://docs.aws.amazon.com/codebuild/latest/userguide/available-runtimes.html)
 - [Pinned custom runtime versions](https://docs.aws.amazon.com/codebuild/latest/userguide/runtime-versions.html)
+
+- [DescribeChangeSet response elements](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_DescribeChangeSet.html)
