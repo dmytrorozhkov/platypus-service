@@ -43,6 +43,11 @@ const base = (target) => ({
 const recordKey = (release) =>
   prefix + 'records/' + releaseId(release) + '.json';
 const now = () => new Date().toISOString();
+// A completed update rollback is a stable starting point, never a successful update.
+const backendReady = (status) =>
+  ['CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE'].includes(
+    status,
+  );
 const revision = (manifest) => {
   if (manifest.kind === 'platypus-neon-release-candidate') {
     const value = manifest.backend?.backendRevision;
@@ -322,7 +327,11 @@ export async function preflight({
     need(
       response.Stacks.length === 1 &&
         stack.StackId === target.stacks[kind] &&
-        ['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(stack.StackStatus) &&
+        (kind === 'backend'
+          ? backendReady(stack.StackStatus)
+          : ['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(
+              stack.StackStatus,
+            )) &&
         stack.Tags?.some(
           (tag) => tag.Key === 'Project' && tag.Value === project,
         ),
@@ -1040,7 +1049,7 @@ export async function updateBackend(
   ).Stacks?.[0];
   need(
     stack?.StackId === target.stacks.backend &&
-      ['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(stack.StackStatus) &&
+      backendReady(stack.StackStatus) &&
       Array.isArray(stack.Parameters),
     'Backend stack is not ready for a reviewed update.',
   );
@@ -1243,10 +1252,16 @@ export async function updateBackend(
         ),
         oldParameters,
       ) &&
-      ['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(
-        beforeExecution.StackStatus,
-      ),
+      backendReady(beforeExecution.StackStatus),
     'Backend ownership/service role changed before execution.',
+  );
+  const previousRollbackTime =
+    beforeExecution.StackStatus === 'UPDATE_ROLLBACK_COMPLETE'
+      ? Date.parse(beforeExecution.LastUpdatedTime)
+      : undefined;
+  need(
+    previousRollbackTime === undefined || Number.isFinite(previousRollbackTime),
+    'Completed rollback needs its update timestamp before execution.',
   );
   await receipt(transport, target, pending, 'backend-reviewed', {
     changeSetId: created.Id,
@@ -1274,7 +1289,11 @@ export async function updateBackend(
       )
         ? true
         : /FAILED|ROLLBACK/.test(value.Stacks?.[0]?.StackStatus ?? '')
-          ? 'failed'
+          ? previousRollbackTime !== undefined &&
+            value.Stacks?.[0]?.StackStatus === 'UPDATE_ROLLBACK_COMPLETE' &&
+            Date.parse(value.Stacks[0].LastUpdatedTime) === previousRollbackTime
+            ? false // ExecuteChangeSet can return before the old rollback status changes.
+            : 'failed'
           : false,
     'Backend update',
   );

@@ -15,6 +15,7 @@ export function buildAccessDocuments({
   target,
   github,
   lambdaExecutionRoleArn,
+  logGroupArn,
   neonBackend = false,
 }) {
   assert.equal(typeof neonBackend, 'boolean');
@@ -29,6 +30,15 @@ export function buildAccessDocuments({
   const account = target.accountId;
   const region = target.region;
   const resources = target.resources;
+  if (neonBackend) {
+    const logPrefix = 'arn:aws:logs:' + region + ':' + account + ':log-group:';
+    assert.equal(typeof logGroupArn, 'string');
+    assert.ok(logGroupArn.startsWith(logPrefix));
+    assert.match(
+      logGroupArn.slice(logPrefix.length),
+      /^[./_#A-Za-z0-9-]{1,512}$/,
+    );
+  }
   const functionPrefix = `arn:aws:lambda:${region}:${account}:function:`;
   assert.ok(resources.functionArn.startsWith(functionPrefix));
   assert.match(
@@ -213,6 +223,33 @@ export function buildAccessDocuments({
     },
   ]);
   const servicePermissions = policy([
+    // CloudFormation resolves GetAtt(LogGroup.Arn) when the existing role changes.
+    // The registry LogGroup read handler needs these five metadata APIs. List
+    // APIs lack resource-level ARN support; the other reads pin one owned group.
+    ...(neonBackend
+      ? [
+          allow(
+            'DiscoverLogGroupMetadata',
+            [
+              'logs:DescribeLogGroups',
+              'logs:DescribeIndexPolicies',
+              'logs:DescribeResourcePolicies',
+            ],
+            '*',
+            {
+              StringEquals: { 'aws:RequestedRegion': region },
+            },
+          ),
+          allow(
+            'ReadOnlyOwnedLogGroupMetadata',
+            ['logs:ListTagsForResource', 'logs:GetDataProtectionPolicy'],
+            [logGroupArn, logGroupArn + ':*'],
+            {
+              StringEquals: { 'aws:RequestedRegion': region },
+            },
+          ),
+        ]
+      : []),
     allow(
       'ReadOnlyOwnedBackendPackage',
       ['s3:GetObject'],
@@ -294,12 +331,14 @@ export function buildCodeBuildAccessDocuments({
   github,
   lambdaExecutionRoleArn,
   projectName,
+  logGroupArn,
 }) {
   assert.equal(projectName, 'platypus-service-publisher');
   const documents = buildAccessDocuments({
     target,
     github,
     lambdaExecutionRoleArn,
+    logGroupArn,
     neonBackend: true,
   });
   const account = target.accountId;
