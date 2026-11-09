@@ -506,7 +506,8 @@ function configuration(target, manifest, version, config, runtimeBody) {
       config.CodeSha256 === manifest.backend.codeSha256 &&
       config.Environment?.Variables?.ALLOWED_ORIGINS ===
         target.resources.origin &&
-      config.Description === 'Platypus revision ' + revision(manifest) &&
+      // Qualified configuration reports the Version description, not Function.
+      config.Description === 'Revision ' + revision(manifest) &&
       config.Runtime === 'nodejs24.x' &&
       same(config.Architectures, ['arm64']) &&
       config.Handler === 'lambda.handler' &&

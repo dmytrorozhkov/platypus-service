@@ -90,7 +90,9 @@ function fixture(fault) {
     return {
       Version: version,
       CodeSha256: values.PackageSha256,
-      Description: 'Platypus revision ' + values.BackendRevision,
+      Description: currentTemplate.Resources.Version.Properties.Description[
+        'Fn::Sub'
+      ].replace('${BackendRevision}', values.BackendRevision),
       Runtime: 'nodejs24.x',
       Architectures: ['arm64'],
       Handler: 'lambda.handler',
