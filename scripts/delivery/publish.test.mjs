@@ -315,6 +315,7 @@ class FakeAws extends MemoryObjects {
   versions = new Map();
   releases = new Map();
   aliasVersion = '2';
+  backendStatus = 'UPDATE_COMPLETE';
   changes;
   requestFault;
   runtimes = new Map();
@@ -432,7 +433,8 @@ class FakeAws extends MemoryObjects {
           Stacks: [
             {
               StackId: t.stacks[kind],
-              StackStatus: 'UPDATE_COMPLETE',
+              StackStatus:
+                kind === 'backend' ? this.backendStatus : 'UPDATE_COMPLETE',
               RoleARN: kind === 'backend' ? this.backendRoleArn : undefined,
               Tags: [{ Key: 'Project', Value: project }],
               Outputs: Object.entries(outputValues).map(
@@ -566,6 +568,7 @@ class FakeAws extends MemoryObjects {
       }
       case 'cloudformation:execute-change-set': {
         assert.equal(input.StackName, t.stacks.backend);
+        this.backendStatus = 'UPDATE_COMPLETE';
         this.backendRoleArn = this.changes.RoleARN;
         if (this.changes.TemplateBody)
           this.backendTemplate = JSON.parse(this.changes.TemplateBody);
@@ -1682,4 +1685,57 @@ test('reconciliation cannot add bootstrap authorization to an existing ordinary 
     /explicitly reviewed bootstrap plan/,
   );
   assert.equal(s.transport.mutations().length, 0);
+});
+
+test('completed backend rollback reconciles the previous baseline without replaying deployment', async (t) => {
+  const s = await scenario(t);
+  s.transport.requestFault = (call, aws) => {
+    if (call.operation === 'execute-change-set') {
+      aws.backendStatus = 'UPDATE_ROLLBACK_COMPLETE';
+      return {};
+    }
+  };
+  await assert.rejects(s.publish(), /Backend update failed/);
+  const pending = s.transport.state();
+  assert.equal(pending.status, 'pending');
+  assert.equal(s.transport.aliasVersion, '2');
+  s.transport.requestFault = undefined;
+  s.transport.calls = [];
+  await reconcileDelivery({
+    expectedPending: pending.operationId,
+    target: s.target,
+    context: s.candidate.context,
+    transport: s.transport,
+    liveCheck: async () => ({ success: true }),
+  });
+  assert.equal(s.transport.state().status, 'completed');
+  assert.equal(s.transport.state().release, s.baseline.release);
+  assert.equal(
+    s.transport.calls.some((c) =>
+      ['create-change-set', 'execute-change-set'].includes(c.operation),
+    ),
+    false,
+  );
+  assert.equal(
+    s.transport.calls.some(
+      (c) =>
+        c.operation === 'put-object' &&
+        ['index.html', 'runtime-config.json', 'favicon.svg'].includes(
+          c.input.Key,
+        ),
+    ),
+    false,
+  );
+  for (const status of [
+    'ROLLBACK_COMPLETE',
+    'UPDATE_ROLLBACK_FAILED',
+    'UPDATE_ROLLBACK_IN_PROGRESS',
+    'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS',
+  ]) {
+    s.transport.backendStatus = status;
+    await assert.rejects(
+      preflight({ target: s.target, transport: s.transport }),
+      /Owned stable stack required/,
+    );
+  }
 });

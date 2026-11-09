@@ -1,0 +1,12 @@
+{
+  "typeName": "AWS::Logs::LogGroup",
+  "region": "eu-north-1",
+  "source": "CloudFormation DescribeType handlers.read.permissions, 2026-11-09",
+  "permissions": [
+    "logs:DescribeLogGroups",
+    "logs:ListTagsForResource",
+    "logs:GetDataProtectionPolicy",
+    "logs:DescribeIndexPolicies",
+    "logs:DescribeResourcePolicies"
+  ]
+}

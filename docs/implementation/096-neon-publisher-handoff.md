@@ -36,7 +36,7 @@ Environment inputs are nonsecret except the dedicated artifact-read credential:
 
 The distinct `/platypus-service/delivery/github-read-token` must be an operator-created Standard SecureString containing a GitHub read credential restricted to this repository and Actions-read/necessary metadata access. It is not the Neon password and has not been created or read by the coordinator. Review expiry and current authorization before setup. Source checkout is public HTTPS with no source PAT or federation provider. A separate authenticated GitHub API read is still required for the selected artifact. Preserve Free plan; no advanced activation or new paid service is implied.
 
-For an exact reviewed selection, access documents can be generated locally by importing `buildCodeBuildAccessDocuments` with the target, `lambdaExecutionRoleArn`, fixed project name and GitHub `{repository,repositoryId,ownerId,environment:'aws-learning',ref:'refs/heads/main'}`; map `ownerId` from the reviewed selection's `repositoryOwnerId`. Review and apply publisher documents only to the CodeBuild role, and service documents only to the CFN role. Do not attach either to the Lambda runtime role.
+For an exact reviewed selection, access documents can be generated locally by importing `buildCodeBuildAccessDocuments` with the target, `lambdaExecutionRoleArn`, the reviewed existing `logGroupArn`, fixed project name and GitHub `{repository,repositoryId,ownerId,environment:'aws-learning',ref:'refs/heads/main'}`; map `ownerId` from the reviewed selection's `repositoryOwnerId`. Review and apply publisher documents only to the CodeBuild role, and service documents only to the CFN role. Do not attach either to the Lambda runtime role.
 
 ## Learner-only remaining order
 
@@ -61,6 +61,16 @@ Verification for this correction: combined AWS/delivery/Neon124/124 tests, globa
 
 This is a source correction, not a successful deployment. The learner retains control of reconciliation, main promotion, package dispatch and every CodeBuild start. Preserve the pending operation and immutable receipts until explicitly reconciled; do not Retry the failed operation blindly.
 
+## November 9 log-group dependency and completed rollback correction
+
+The third learner-started publication successfully inspected and executed its reviewed change set. CloudFormation then failed ExecutionRole because resolving the existing LogGroup Arn dependency required logs:DescribeLogGroups. Automatic rollback finished, retaining alias2 and associating the reviewed service role with the backend stack. This is an actual role permission failure, not a local build failure.
+
+Fresh regional DescribeType for AWS::Logs::LogGroup lists five read-handler permissions. The Neon service-role envelope adds exactly those metadata actions: DescribeLogGroups, DescribeIndexPolicies and DescribeResourcePolicies use Resource:* because AWS provides no resource-level support; ListTagsForResource and GetDataProtectionPolicy use only the exact reviewed existing log-group ARN and its IAM suffix form. Both statements require aws:RequestedRegion=eu-north-1. The setup generator now requires a separately reviewed logGroupArn for Neon access generation; discover it from the existing backend Logs resource, without adding it to the strict runtime/delivery target. No event read/write or group/stream creation/deletion is added. The prepared local policy preserves every existing permission from the actual managed service policy and adds only those two read statements; installing it remains learner-only. The CodeBuild publisher and Lambda execution-role policies are unchanged.
+
+The publisher now accepts UPDATE_ROLLBACK_COMPLETE as a stable backend starting state, including explicit reconciliation and the next reviewed update. Other stacks retain their prior status allowlist, and failed, in-progress, cleanup and plain creation ROLLBACK_COMPLETE states remain blocked. Exact template, ownership, resource, role, parameter, code and control checks remain in force. A newly executed update must still finish UPDATE_COMPLETE; another rollback remains a publication failure. Polling tolerates only the unchanged previous rollback timestamp while the asynchronous execution starts; a newer rollback still fails. Missing prior rollback timestamp prevents execution. Reconciliation can only record a freshly accepted existing baseline/candidate, with no change-set replay or public control replacement.
+
+Final combined127/127 tests, global lint, format and diff checks passed. Independent read-only review accepted the metadata permission scopes and the rollback start/polling distinction with no confirmed blocker; focused12/12, access8/8 and polling4/4 independently passed. The actual cloud ledger remains pending until the learner explicitly reconciles it. No agent policy install, stack update, reconciliation or CodeBuild start occurred.
+
 ## Official sources consulted
 
 - [No-source CodeBuild and inline buildspec](https://docs.aws.amazon.com/codebuild/latest/userguide/no-source.html)
@@ -69,3 +79,6 @@ This is a source correction, not a successful deployment. The learner retains co
 - [Pinned custom runtime versions](https://docs.aws.amazon.com/codebuild/latest/userguide/runtime-versions.html)
 
 - [DescribeChangeSet response elements](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_DescribeChangeSet.html)
+
+- [CloudWatch Logs authorization and DescribeLogGroups scope](https://docs.aws.amazon.com/service-authorization/latest/reference/list_logs.html)
+- [CloudFormation stable rollback status](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/view-stack-events.html)

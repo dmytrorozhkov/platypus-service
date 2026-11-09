@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   buildAccessDocuments,
   buildCodeBuildAccessDocuments,
@@ -7,6 +8,8 @@ import {
 
 function config() {
   return {
+    logGroupArn:
+      'arn:aws:logs:eu-north-1:123456789012:log-group:fixture-backend-Logs-owned',
     target: {
       project: 'platypus-service',
       region: 'eu-north-1',
@@ -257,4 +260,46 @@ test('CodeBuild trust pins the project and publisher can read only its distinct 
   assert.throws(() =>
     buildCodeBuildAccessDocuments({ ...input, projectName: 'other' }),
   );
+});
+
+test('Neon CFN role can resolve the existing log group ARN without reading or writing log events', () => {
+  const documents = buildAccessDocuments({ ...config(), neonBackend: true });
+  const statements = documents.servicePermissions.Statement;
+  const logs = statements.filter((s) =>
+    s.Action.some((action) => action.startsWith('logs:')),
+  );
+  const readContract = JSON.parse(
+    readFileSync(
+      new URL('./fixtures/log-group-read-permissions.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  assert.equal(logs.length, 2);
+  assert.deepEqual(
+    logs.flatMap((s) => s.Action).sort(),
+    readContract.permissions.sort(),
+  );
+  assert.equal(logs[0].Resource, '*');
+  assert.deepEqual(logs[0].Condition, {
+    StringEquals: { 'aws:RequestedRegion': 'eu-north-1' },
+  });
+  assert.deepEqual(
+    statements.filter((s) => s.Resource === '*'),
+    [logs[0]],
+  );
+  assert.deepEqual(logs[1].Resource, [
+    config().logGroupArn,
+    config().logGroupArn + ':*',
+  ]);
+  assert.deepEqual(logs[1].Condition, logs[0].Condition);
+  for (const logGroupArn of [
+    undefined,
+    '*',
+    config().logGroupArn + ':*',
+    config().logGroupArn.replace('eu-north-1', 'us-east-1'),
+    config().logGroupArn.replace('123456789012', '999988887777'),
+  ])
+    assert.throws(() =>
+      buildAccessDocuments({ ...config(), neonBackend: true, logGroupArn }),
+    );
 });

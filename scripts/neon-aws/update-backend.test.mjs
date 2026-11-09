@@ -88,6 +88,12 @@ function fixture(fault) {
   let currentTemplate = backendTemplate();
   let role =
     fault === 'initial-role' ? target.serviceRoleArn + '-other' : undefined;
+  const rolledBack = ['rolled-back', 'rolled-back-fails'].includes(fault);
+  if (rolledBack) role = target.serviceRoleArn;
+  let stackStatus = rolledBack ? 'UPDATE_ROLLBACK_COMPLETE' : 'UPDATE_COMPLETE';
+  let updatedAt = '2026-11-09T10:00:00Z';
+  let oldParameters;
+  let staleReturned = false;
   let alias = '2';
   let requested;
   let stackReads = 0;
@@ -173,7 +179,10 @@ function fixture(fault) {
       switch (service + ':' + operation) {
         case 'cloudformation:describe-stacks': {
           stackReads += 1;
-          const values = { ...parameters };
+          const stale =
+            fault === 'rolled-back' && executions === 1 && !staleReturned;
+          if (stale) staleReturned = true;
+          const values = { ...(stale ? oldParameters : parameters) };
           let selectedRole = role;
           if (stackReads === 2 && fault === 'before-role')
             selectedRole = target.serviceRoleArn + '-other';
@@ -183,7 +192,8 @@ function fixture(fault) {
             Stacks: [
               {
                 StackId: target.stacks.backend,
-                StackStatus: 'UPDATE_COMPLETE',
+                StackStatus: stale ? 'UPDATE_ROLLBACK_COMPLETE' : stackStatus,
+                LastUpdatedTime: stale ? '2026-11-09T10:00:00Z' : updatedAt,
                 RoleARN: selectedRole,
                 Parameters: Object.entries(values).map(
                   ([ParameterKey, ParameterValue]) => ({
@@ -276,6 +286,14 @@ function fixture(fault) {
         case 'cloudformation:execute-change-set':
           assert.equal(input.ChangeSetName, 'offline-change-set');
           executions += 1;
+          oldParameters = { ...parameters };
+          updatedAt = '2026-11-09T11:00:00Z';
+          if (['rollback-on-execute', 'rolled-back-fails'].includes(fault)) {
+            stackStatus = 'UPDATE_ROLLBACK_COMPLETE';
+            role = target.serviceRoleArn;
+            return {};
+          }
+          stackStatus = 'UPDATE_COMPLETE';
           parameters = Object.fromEntries(
             requested.Parameters.map((item) => [
               item.ParameterKey,
@@ -316,7 +334,15 @@ function fixture(fault) {
     manifest,
     legacy,
     transport,
-    state: () => ({ executions, writes, alias, role, parameters, requested }),
+    state: () => ({
+      executions,
+      writes,
+      alias,
+      role,
+      parameters,
+      requested,
+      staleReturned,
+    }),
   };
 }
 
@@ -392,4 +418,45 @@ test('changed review evidence prevents change-set execution', async () => {
     assert.equal(cloud.state().executions, 0, fault);
     assert.equal(cloud.state().alias, '2', fault);
   }
+});
+
+test('Neon update may start from a completed rollback but cannot accept a new rollback as success', async () => {
+  const cloud = fixture('rolled-back');
+  const updated = await updateBackend(
+    cloud.transport,
+    cloud.target,
+    cloud.manifest,
+    { operationId: 'gh-rollback-1' },
+    undefined,
+    true,
+  );
+  assert.equal(updated.version, '3');
+  assert.equal(cloud.state().executions, 1);
+  assert.equal(cloud.state().staleReturned, true);
+  const failed = fixture('rollback-on-execute');
+  await assert.rejects(
+    updateBackend(
+      failed.transport,
+      failed.target,
+      failed.manifest,
+      { operationId: 'gh-failed-1' },
+      undefined,
+      true,
+    ),
+    /Backend update failed/,
+  );
+  assert.equal(failed.state().alias, '2');
+  const rapidFailure = fixture('rolled-back-fails');
+  await assert.rejects(
+    updateBackend(
+      rapidFailure.transport,
+      rapidFailure.target,
+      rapidFailure.manifest,
+      { operationId: 'gh-rapid-1' },
+      undefined,
+      true,
+    ),
+    /Backend update failed/,
+  );
+  assert.equal(rapidFailure.state().alias, '2');
 });
