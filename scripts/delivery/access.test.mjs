@@ -140,9 +140,49 @@ test('CloudFormation role has no role, topology, deletion or invocation authorit
     'cloudformation.amazonaws.com',
   );
   const alias = documents.servicePermissions.Statement.find(
-    (statement) => statement.Sid === 'ManageOnlyLiveAlias',
+    (statement) => statement.Sid === 'ManageAliasesOfOwnedFunction',
   );
-  assert.equal(alias.Resource, config().target.resources.aliasArn);
+  assert.deepEqual(alias.Resource, [
+    config().target.resources.functionArn,
+    config().target.resources.aliasArn,
+  ]);
+});
+
+test('CFN alias API authorization covers the unqualified owned function without authority over other functions', () => {
+  const target = config().target;
+  // Observed CFN UpdateAlias authorization uses FunctionName's base ARN even
+  // when the separate Name parameter is exactly live. An alias-only grant fails.
+  const requests = ['lambda:GetAlias', 'lambda:UpdateAlias'];
+  for (const neonBackend of [false, true]) {
+    const statements = buildAccessDocuments({ ...config(), neonBackend })
+      .servicePermissions.Statement;
+    const permits = (action, resource) =>
+      statements.some(
+        (statement) =>
+          statement.Effect === 'Allow' &&
+          statement.Action.includes(action) &&
+          [statement.Resource].flat().includes(resource),
+      );
+    for (const action of requests) {
+      assert.ok(permits(action, target.resources.functionArn));
+      assert.ok(permits(action, target.resources.aliasArn));
+      for (const foreign of [
+        target.resources.functionArn + '-other',
+        target.resources.functionArn.replace('123456789012', '999988887777'),
+        target.resources.functionArn.replace('eu-north-1', 'us-east-1'),
+      ])
+        assert.equal(permits(action, foreign), false);
+    }
+    const aliasWrites = statements.filter((statement) =>
+      statement.Action.includes('lambda:UpdateAlias'),
+    );
+    assert.equal(aliasWrites.length, 1);
+    assert.deepEqual(
+      [aliasWrites[0].Resource].flat().sort(),
+      [target.resources.functionArn, target.resources.aliasArn].sort(),
+    );
+    assert.equal(aliasWrites[0].Condition, undefined);
+  }
 });
 
 test('S3 writes require absence or observed ETag and cannot replace an immutable graph', () => {
