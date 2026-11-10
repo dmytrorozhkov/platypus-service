@@ -275,9 +275,11 @@ export function buildAccessDocuments({
       resources.functionArn,
     ),
     allow(
-      'ManageOnlyLiveAlias',
+      // Alias API authorization uses the base FunctionName ARN. IAM cannot
+      // constrain its separate Name parameter; the executor pins the live alias.
+      'ManageAliasesOfOwnedFunction',
       ['lambda:GetAlias', 'lambda:UpdateAlias'],
-      resources.aliasArn,
+      [resources.functionArn, resources.aliasArn],
     ),
     allow(
       'ObserveExistingLambdaRole',
